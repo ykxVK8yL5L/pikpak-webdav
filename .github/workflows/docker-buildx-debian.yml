@@ -1,4 +1,4 @@
-name: docker-buildx-ubuntu
+name: docker-buildx-debian
 
 on:
   repository_dispatch:
