@@ -1,0 +1,9 @@
+FROM rust:slim-buster as builder
+RUN apk add --no-cache musl-dev
+WORKDIR app
+COPY . .
+RUN cargo build --release
+
+FROM debian:buster-slim as runtime
+COPY --from=builder /app/target/release/webdav /usr/local/bin
+ENTRYPOINT ["./usr/local/bin/webdav"]
