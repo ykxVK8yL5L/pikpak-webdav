@@ -39,3 +39,4 @@ webdav-handler = { git = "https://github.com/messense/webdav-handler-rs.git", br
 [profile.release]
 lto = true
 opt-level = "z"  # Optimize for size
+codegen-units = 1
