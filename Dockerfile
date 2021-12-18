@@ -1,4 +1,5 @@
 FROM rust:alpine3.14 as builder
+RUN apk add --no-cache musl-dev
 WORKDIR app
 COPY . .
 RUN cargo build --release
