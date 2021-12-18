@@ -1,5 +1,4 @@
 FROM rust:slim-buster as builder
-RUN apk add --no-cache musl-dev
 WORKDIR app
 COPY . .
 RUN cargo build --release
