@@ -1,4 +1,4 @@
-name: docker-buildx-amd64 
+name: docker-buildx
 
 on:
   repository_dispatch:
