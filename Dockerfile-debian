@@ -1,8 +1,8 @@
-FROM rust:slim-buster as builder
+FROM rust:buster as builder
 WORKDIR app
 COPY . .
 RUN cargo build --release
 
-FROM debian:buster-slim as runtime
+FROM debian:buster as runtime
 COPY --from=builder /app/target/release/webdav /usr/local/bin
 ENTRYPOINT ["./usr/local/bin/webdav"]
