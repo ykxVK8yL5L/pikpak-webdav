@@ -40,5 +40,5 @@ jobs:
           docker buildx build . \
             --platform linux/amd64 \
             --output "type=image,push=true" \
-            --file Dockerfile-test \
+            --file Dockerfile \
             --tag ykxvk8yl5l/pikpak-webdav:latest
