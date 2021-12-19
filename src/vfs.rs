@@ -359,7 +359,13 @@ impl WebdavDriveFileSystem {
         let res: WebdavFile = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files/{}",file_id.to_string()))
             .await?
             .context("expect response")?;
-        Ok(res.medias[0].link.url.clone())
+        
+        if(res.mime_type.contains("video/")){
+            Ok(res.medias[0].link.url.clone())
+        }else{
+            Ok(res.web_content_link.clone())
+        }
+
 
         // let access_token_key = "access_token".to_string();
         // let access_token = self.auth_cache.get(&access_token_key).unwrap();
