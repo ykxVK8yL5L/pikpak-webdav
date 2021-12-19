@@ -391,6 +391,7 @@ impl WebdavDriveFileSystem {
         let res = self.client
             .get(url)
             .header(RANGE, range)
+            .timeout(Duration::from_secs(120))
             .send()
             .await?
             .error_for_status()?;
