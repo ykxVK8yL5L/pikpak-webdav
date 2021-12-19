@@ -63,7 +63,7 @@ jobs:
       - name: Archive binary
         run: |
           cd target/${{ matrix.platform.target }}/release
-          tar czvf webdav-${{ steps.tag.outputs.tag }}.${{ matrix.platform.target }}.tar.gz webdav
+          tar czvf webdav-v0.0.1.${{ matrix.platform.target }}.tar.gz webdav
           shasum -a 256 webdav-v0.0.1.${{ matrix.platform.target }}.tar.gz > webdav-v0.0.1.${{ matrix.platform.target }}.tar.gz.sha256
           cd -
       - name: Upload binary to GitHub Release
