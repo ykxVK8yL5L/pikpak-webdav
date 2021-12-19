@@ -17,6 +17,8 @@ jobs:
       strategy:
         matrix:
           target:
+            - arch: "aarch64_generic"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/rockchip/armv8/openwrt-sdk-rockchip-armv8_gcc-11.2.0_musl.Linux-x86_64.tar.xz"
             - arch: "x86_64"
               sdk: "https://downloads.openwrt.org/snapshots/targets/x86/64/openwrt-sdk-x86-64_gcc-11.2.0_musl.Linux-x86_64.tar.xz"
       steps:
