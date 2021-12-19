@@ -1,25 +1,11 @@
-FROM debian:buster as builder
-MAINTAINER Liu Chong <mail@clojure.cn>
-WORKDIR /root
-# common packages
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-    ca-certificates curl file \
-    build-essential \
-    autoconf automake autotools-dev libtool xutils-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-
-# install all 3 toolchains
-RUN curl https://sh.rustup.rs -sSf | \
-    sh -s -- --default-toolchain stable -y && \
-    /root/.cargo/bin/rustup update beta && \
-    /root/.cargo/bin/rustup update nightly
-
-ENV PATH=/root/.cargo/bin:$PATH
+FROM rust:1.57 AS builder
+RUN rustup target add armv7-unknown-linux-musleabihf
+RUN apt-get update && apt-get -y install binutils-arm-linux-gnueabihf
+WORKDIR /app
 COPY . .
-RUN cargo build --release
+RUN cargo build --release --target armv7-unknown-linux-musleabihf
 
-FROM debian:buster as runtime
-COPY --from=builder /root/target/release/webdav /usr/local/bin
+FROM --platform linux/arm alpine:3.12
+WORKDIR /app
+COPY --from=builder /app/target/armv7-unknown-linux-musleabihf/release/webdav /usr/local/bin
 ENTRYPOINT ["./usr/local/bin/webdav"]
