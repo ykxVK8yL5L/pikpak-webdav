@@ -19,7 +19,7 @@ pikpak_user.description = translate("Pikpak登陆用户名")
 
 pikpak_password = e:option(Value, "pikpak_password", translate("Pikpak Password"))
 pikpak_password.description = translate("Pikpak登陆密码")
-pikpak_password.password
+pikpak_password.password = true
 
 
 root = e:option(Value, "root", translate("Root Directory"))
