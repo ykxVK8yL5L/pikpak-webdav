@@ -3,6 +3,7 @@ name: Test
 on:
   repository_dispatch:
   workflow_dispatch:
+    branches: [ main ]
     tags: [ 'v*' ]
     inputs:
       ssh:
