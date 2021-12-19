@@ -1,11 +1,9 @@
-FROM rust:1.57 AS builder
-RUN rustup target add armv7-unknown-linux-musleabihf
-RUN apt-get update && apt-get -y install binutils-arm-linux-gnueabihf
+FROM rust:latest AS builder
 WORKDIR /app
 COPY . .
-RUN cargo build --release --target armv7-unknown-linux-musleabihf
+RUN cargo build --release
 
-FROM --platform linux/arm alpine:3.12
+FROM  alpine:3.12
 WORKDIR /app
-COPY --from=builder /app/target/armv7-unknown-linux-musleabihf/release/webdav /usr/local/bin
+COPY --from=builder /app/target/release/webdav /usr/local/bin
 ENTRYPOINT ["./usr/local/bin/webdav"]
