@@ -148,5 +148,5 @@ jobs:
           context: .
           platforms: linux/amd64,linux/386,linux/arm64,linux/arm/v7,linux/arm/v6
           push: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) }}
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ykxvk8yl5l/pikpak-webdav:latest
           labels: ${{ steps.meta.outputs.labels }}
