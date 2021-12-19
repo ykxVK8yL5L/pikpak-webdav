@@ -120,7 +120,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v3
         with:
-          images: messense/webdav
+          images: ykxvk8yl5l/pikpak-webdav
           tags: |
             type=schedule
             type=ref,event=branch
