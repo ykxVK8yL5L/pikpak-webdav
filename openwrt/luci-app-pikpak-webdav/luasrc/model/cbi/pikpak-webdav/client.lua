@@ -2,7 +2,7 @@ local uci = luci.model.uci.cursor()
 local m, e
 
 m = Map("pikpak-webdav")
-m.title = translate("pikpak WebDAV")
+m.title = translate("Pikpak WebDAV")
 m.description = translate("<a href=\"https://github.com/ykxVK8yL5L/pikpak-webdav\" target=\"_blank\">Project GitHub URL</a>")
 
 m:section(SimpleSection).template = "pikpak-webdav/pikpak-webdav_status"
