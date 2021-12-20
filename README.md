@@ -1,5 +1,5 @@
 # pikpak-webdav
-pikpak的webdav的rust实现  还有很多问题    
+pikpak的webdav的rust实现  还有很多问题 不支持复制、上传等功能主要是视频播放        
 https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 
 映射端口:9867      
