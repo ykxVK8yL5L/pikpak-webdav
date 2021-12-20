@@ -4,7 +4,7 @@ function index()
 	if not nixio.fs.access("/etc/config/pikpak-webdav") then
 		return
 	end
-	entry({"admin", "services", "pikpak-webdav"}, alias("admin", "services", "pikpak-webdav", "client"),_("pikpak WebDAV"), 10).dependent = true  -- 首页
+	entry({"admin", "services", "pikpak-webdav"}, alias("admin", "services", "Pikpak-webdav", "client"),_("Pikpak WebDAV"), 10).dependent = true  -- 首页
 	entry({"admin", "services", "pikpak-webdav", "client"}, cbi("pikpak-webdav/client"),_("Settings"), 10).leaf = true  -- 客户端配置
 	entry({"admin", "services", "pikpak-webdav", "log"}, form("pikpak-webdav/log"),_("Log"), 30).leaf = true -- 日志页面
 
