@@ -66,7 +66,7 @@ endef
 
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/webdav $(1)/usr/bin/pikpak-webdav
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/pikpak-webdav $(1)/usr/bin/pikpak-webdav
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/pikpak-webdav.init $(1)/etc/init.d/pikpak-webdav
 	$(INSTALL_DIR) $(1)/etc/config
