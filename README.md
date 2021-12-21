@@ -5,7 +5,6 @@ https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 
 映射端口:9867      
 其它的貌似也没啥说的    
-## 和阿里云的webdav一样会有缓存问题   重启dcoker即可  
 
 
 示例命令:
