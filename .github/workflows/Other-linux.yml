@@ -17,13 +17,13 @@ jobs:
           platform:
             - target: "armv5te-unknown-linux-musleabi"
               image_tag: "armv5te-musleabi"
-              cargo_extra_args: --no-default-features 
+              cargo_extra_args: --no-default-features --features rustls-tls
             - target: "mips-unknown-linux-musl"
               image_tag: "mips-musl"
-              cargo_extra_args: --no-default-features 
+              cargo_extra_args: --no-default-features --features native-tls-vendored
             - target: "mipsel-unknown-linux-musl"
               image_tag: "mipsel-musl"
-              cargo_extra_args: --no-default-features 
+              cargo_extra_args: --no-default-features --features native-tls-vendored
       container:
         image: docker://messense/rust-musl-cross:${{ matrix.platform.image_tag }}
       steps:
