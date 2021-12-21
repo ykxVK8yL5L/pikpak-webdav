@@ -135,4 +135,26 @@ jobs:
           file_glob: true
           overwrite: true
           tag: "refs/tags/${{ github.event.inputs.tag }}"
-  
+          
+  release:
+      name: Release
+      runs-on: ubuntu-latest
+      environment:
+        name: PyPI
+        url: https://pypi.org/project/pikpak-webdav/
+      needs: [ linux, macos ]
+      steps:
+        - uses: actions/download-artifact@v2
+          with:
+            name: wheels
+        - uses: actions/setup-python@v2
+          with:
+            python-version: 3.9
+        - name: Publish to PyPi
+          env:
+            TWINE_USERNAME: __token__
+            TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          run: |
+            pip install --upgrade twine
+            twine upload --skip-existing *
+
