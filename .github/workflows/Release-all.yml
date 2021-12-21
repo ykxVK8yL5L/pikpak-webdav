@@ -202,32 +202,32 @@ jobs:
         with:
           name: x86_64-unknown-linux-musl-bin
       - run: |
-          chmod a+x webdav
-          mv webdav webdav-amd64
+          chmod a+x pikpak-webdav
+          mv pikpak-webdav pikpak-webdav-amd64
       - uses: actions/download-artifact@v2
         with:
           name: i686-unknown-linux-musl-bin
       - run: |
-          chmod a+x webdav
-          mv webdav webdav-386
+          chmod a+x pikpak-webdav
+          mv pikpak-webdav pikpak-webdav-386
       - uses: actions/download-artifact@v2
         with:
           name: aarch64-unknown-linux-musl-bin
       - run: |
-          chmod a+x webdav
-          mv webdav webdav-arm64
+          chmod a+x pikpak-webdav
+          mv pikpak-webdav pikpak-webdav-arm64
       - uses: actions/download-artifact@v2
         with:
           name: armv7-unknown-linux-musleabihf-bin
       - run: |
-          chmod a+x webdav
-          mv webdav webdav-armv7
+          chmod a+x pikpak-webdav
+          mv pikpak-webdav pikpak-webdav-armv7
       - uses: actions/download-artifact@v2
         with:
           name: arm-unknown-linux-musleabihf-bin
       - run: |
-          chmod a+x webdav
-          mv webdav webdav-armv6
+          chmod a+x pikpak-webdav
+          mv pikpak-webdav pikpak-webdav-armv6
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v3
