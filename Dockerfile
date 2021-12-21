@@ -9,7 +9,7 @@ RUN apk add tzdata && \
 
 RUN mkdir -p /etc/pikpak-webdav
 WORKDIR /root/
-ADD webdav-$TARGETARCH$TARGETVARIANT /usr/bin/webdav
+ADD pikpak-webdav-$TARGETARCH$TARGETVARIANT /usr/bin/pikpak-webdav
 
 ENTRYPOINT ["/sbin/tini", "--"]
-CMD ["/usr/bin/webdav", "--host", "0.0.0.0", "--workdir", "/etc/pikpak-webdav"]
+CMD ["/usr/bin/pikpak-webdav", "--host", "0.0.0.0", "--workdir", "/etc/pikpak-webdav"]
