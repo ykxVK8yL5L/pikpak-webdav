@@ -27,7 +27,7 @@ docker run --name pikpak-webdav --restart=unless-stopped -p 9867:9867 -e PIKPAK_
 ```
 
 
-openwrt 目前支持:x86_64和aarch64_generic其它的有需要的话  提issue吧     
+openwrt   
 x86_64的安装代码:   
 ```
 wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.1/pikpak-webdav_0.0.1_x86_64.ipk
@@ -37,6 +37,19 @@ opkg install pikpak-webdav_0.0.1_x86_64.ipk
 opkg install luci-app-pikpak-webdav_1.0.0_all.ipk
 opkg install luci-i18n-pikpak-webdav-zh-cn_1.0.0-1_all.ipk
 ```
+
+其它 CPU 架构的路由器可在 [GitHub Releases](https://github.com/ykxVK8yL5L/pikpak-webdav/releases) 页面中查找对应的架构的主程序 ipk 文件下载安装， 常见
+OpenWrt 路由器 CPU 架构如下表（欢迎补充）：
+
+|      路由器     |        CPU 架构       |
+|----------------|----------------------|
+| nanopi r4s     | aarch64_generic      |
+| 小米 AX3600     | aarch64_cortex-a53  |
+| 斐讯 N1 盒子    | aarch64_cortex-a53   |
+| Newifi D2      | mipsel_24kc          |
+| Pogoplug       | arm_mpcore           |
+
+> Tips: 不清楚 CPU 架构类型可通过运行 `opkg print-architecture` 命令查询。
 
 
 参考项目为:
