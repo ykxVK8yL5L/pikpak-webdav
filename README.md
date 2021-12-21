@@ -8,7 +8,7 @@ https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 
 ## 命令行格式[然后浏览器访问http://localhost:9867】      
 ```
-pikpak-webdav --pikpak-user xxxx --pikpak-password xxxx 
+pikpak-webdav --host 0.0.0.0 --pikpak-user xxxx --pikpak-password xxxx 
 ```
 
 ## 安装
