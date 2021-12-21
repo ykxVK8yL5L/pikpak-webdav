@@ -32,16 +32,16 @@ jobs:
           args: --release --out dist --strip
       - name: Install built wheel - x86_64
         run: |
-          pip install webdav --no-index --find-links dist --force-reinstall
-          webdav --help
+          pip install pikpak-webdav --no-index --find-links dist --force-reinstall
+          pikpak-webdav --help
       - name: Build wheels - universal2
         uses: messense/maturin-action@v1
         with:
           args: --release --universal2 --out dist --strip --no-sdist
       - name: Install built wheel - universal2
         run: |
-          pip install webdav --no-index --find-links dist --force-reinstall
-          webdav --help
+          pip install pikpak-webdav --no-index --find-links dist --force-reinstall
+          pikpak-webdav --help
       - name: Upload wheels
         uses: actions/upload-artifact@v2
         with:
@@ -52,19 +52,19 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: apple-darwin-bin
-          path: target/release/webdav
+          path: target/release/pikpak-webdav
           if-no-files-found: error
       - name: Archive binary
         run: |
           cd target/release
-          tar czvf webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz webdav
-          shasum -a 256 webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz > webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz.sha256
+          tar czvf pikpak-webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz pikpak-webdav
+          shasum -a 256 pikpak-webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz > pikpak-webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz.sha256
           cd -
       - name: Upload binary to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/release/webdav*.tar.gz
+          file: target/release/pikpak-webdav*.tar.gz
           file_glob: true
           overwrite: true
           tag: "refs/tags/${{ github.event.inputs.tag }}"
@@ -114,24 +114,24 @@ jobs:
         uses: crazy-max/ghaction-upx@v1
         with:
           version: latest
-          files: target/${{ matrix.platform.target }}/release/webdav
+          files: target/${{ matrix.platform.target }}/release/pikpak-webdav
       - name: Upload binary artifacts
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.platform.target }}-bin
-          path: target/${{ matrix.platform.target }}/release/webdav
+          path: target/${{ matrix.platform.target }}/release/pikpak-webdav
           if-no-files-found: error
       - name: Archive binary
         run: |
           cd target/${{ matrix.platform.target }}/release
-          tar czvf webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz webdav
-          shasum -a 256 webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz > webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz.sha256
+          tar czvf pikpak-webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz pikpak-webdav
+          shasum -a 256 pikpak-webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz > pikpak-webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz.sha256
           cd -
       - name: Upload binary to GitHub Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.platform.target }}/release/webdav*.tar.gz*
+          file: target/${{ matrix.platform.target }}/release/pikpak-webdav*.tar.gz*
           file_glob: true
           overwrite: true
           tag: "refs/tags/${{ github.event.inputs.tag }}"
@@ -141,7 +141,7 @@ jobs:
       runs-on: ubuntu-latest
       environment:
         name: PyPI
-        url: https://pypi.org/project/pikpak-webdav/
+        url: https://pypi.org/project/pikpak-pikpak-webdav/
       needs: [ linux, macos ]
       steps:
         - uses: actions/download-artifact@v2
@@ -157,4 +157,3 @@ jobs:
           run: |
             pip install --upgrade twine
             twine upload --skip-existing *
-
