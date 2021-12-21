@@ -22,7 +22,7 @@ ifeq ($(ARCH),i386)
   PKG_ARCH:=i686
 endif
 
-PKG_SOURCE:=webdav-v$(PKG_VERSION).$(PKG_ARCH)-unknown-linux-$(PKG_LIBC).tar.gz
+PKG_SOURCE:=pikpak-webdav-v$(PKG_VERSION).$(PKG_ARCH)-unknown-linux-$(PKG_LIBC).tar.gz
 PKG_SOURCE_URL:=https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v$(PKG_VERSION)/
 PKG_HASH:=skip
 
