@@ -11,7 +11,7 @@ on:
 
 jobs:
 
-macos:
+  macos:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
@@ -68,8 +68,7 @@ macos:
           file_glob: true
           overwrite: true
           tag: "refs/tags/${{ github.event.inputs.tag }}"
-
-
+          
   linux:
     runs-on: ubuntu-latest
     strategy:
