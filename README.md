@@ -6,6 +6,15 @@ https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 映射端口:9867      
 其它的貌似也没啥说的    
 
+## 安装
+
+可以从 [GitHub Releases](https://github.com/ykxVK8yL5L/pikpak-webdav/releases) 页面下载预先构建的二进制包， 也可以使用 pip 从 PyPI 下载:
+
+```bash
+pip install pikpak-webdav
+```
+
+
 
 示例命令:
 ```
