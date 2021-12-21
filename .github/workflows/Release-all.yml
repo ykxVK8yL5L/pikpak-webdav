@@ -1,0 +1,139 @@
+name: Release For All
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: true
+        default: 'v0.0.1'
+
+jobs:
+
+macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: aarch64-apple-darwin
+          profile: minimal
+          default: true
+      - name: Build wheels - x86_64
+        uses: messense/maturin-action@v1
+        with:
+          target: x86_64-apple-darwin
+          args: --release --out dist --strip
+      - name: Install built wheel - x86_64
+        run: |
+          pip install webdav --no-index --find-links dist --force-reinstall
+          webdav --help
+      - name: Build wheels - universal2
+        uses: messense/maturin-action@v1
+        with:
+          args: --release --universal2 --out dist --strip --no-sdist
+      - name: Install built wheel - universal2
+        run: |
+          pip install webdav --no-index --find-links dist --force-reinstall
+          webdav --help
+      - name: Upload wheels
+        uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: dist
+          if-no-files-found: error
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: apple-darwin-bin
+          path: target/release/webdav
+          if-no-files-found: error
+      - name: Archive binary
+        run: |
+          cd target/release
+          tar czvf webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz aliyundrive-webdav
+          shasum -a 256 webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz > webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz.sha256
+          cd -
+      - name: Upload binary to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/release/webdav*.tar.gz
+          file_glob: true
+          overwrite: true
+          tag: "refs/tags/${{ github.event.inputs.tag }}"
+
+
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: [
+          { target: "x86_64-unknown-linux-musl", image_tag: "x86_64-musl", wheel: true },
+          { target: "i686-unknown-linux-musl", image_tag: "i686-musl", wheel: true },
+          { target: "aarch64-unknown-linux-musl", image_tag: "aarch64-musl", wheel: true },
+          { target: "armv7-unknown-linux-musleabihf", image_tag: "armv7-musleabihf", wheel: true },
+          { target: "armv7-unknown-linux-musleabi", image_tag: "armv7-musleabi", wheel: false },
+          { target: "arm-unknown-linux-musleabihf", image_tag: "arm-musleabihf", wheel: false },
+          { target: "arm-unknown-linux-musleabi", image_tag: "arm-musleabi", wheel: false },
+        ]
+    container:
+      image: docker://messense/rust-musl-cross:${{ matrix.platform.image_tag }}
+      env:
+        CFLAGS_armv7_unknown_linux_musleabihf: '-mfpu=vfpv3-d16'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build wheels - manylinux
+        uses: messense/maturin-action@main
+        with:
+          target: ${{ matrix.platform.target }}
+          manylinux: auto
+          container: off
+          args: --no-sdist --release -o dist --strip
+      - name: Build wheels - musllinux
+        if: matrix.platform.wheel
+        uses: messense/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          manylinux: musllinux_1_1
+          container: off
+          args: --release --out dist --no-sdist --strip
+      - name: Upload wheels
+        if: matrix.platform.wheel
+        uses: actions/upload-artifact@v2
+        with:
+          name: wheels
+          path: dist
+          if-no-files-found: error
+      - name: Upx compress binary
+        uses: crazy-max/ghaction-upx@v1
+        with:
+          version: latest
+          files: target/${{ matrix.platform.target }}/release/webdav
+      - name: Upload binary artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.platform.target }}-bin
+          path: target/${{ matrix.platform.target }}/release/webdav
+          if-no-files-found: error
+      - name: Archive binary
+        run: |
+          cd target/${{ matrix.platform.target }}/release
+          tar czvf webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz webdav
+          shasum -a 256 webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz > webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz.sha256
+          cd -
+      - name: Upload binary to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.platform.target }}/release/webdav*.tar.gz*
+          file_glob: true
+          overwrite: true
+          tag: "refs/tags/${{ github.event.inputs.tag }}"
+  
