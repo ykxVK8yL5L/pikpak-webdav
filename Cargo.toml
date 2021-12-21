@@ -1,5 +1,5 @@
 [package]
-name = "webdav"
+name = "pikpak-webdav"
 version = "0.1.0"
 edition = "2021"
 
