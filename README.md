@@ -21,7 +21,7 @@ pip install pikpak-webdav
 
 
 
-示例命令:
+Docker示例命令:
 ```
 docker run --name pikpak-webdav --restart=unless-stopped -p 9867:9867 -e PIKPAK_USER='XXXXXXXX' -e PIKPAK_PASSWORD='XXXXXXX' ykxvk8yl5l/pikpak-webdav:latest
 ```
