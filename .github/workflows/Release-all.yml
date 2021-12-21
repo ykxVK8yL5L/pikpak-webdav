@@ -57,7 +57,7 @@ jobs:
       - name: Archive binary
         run: |
           cd target/release
-          tar czvf webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz aliyundrive-webdav
+          tar czvf webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz webdav
           shasum -a 256 webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz > webdav-${{ github.event.inputs.tag }}.apple-darwin.tar.gz.sha256
           cd -
       - name: Upload binary to GitHub Release
