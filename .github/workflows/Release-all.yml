@@ -1,4 +1,4 @@
-name: Release For All
+name: Release For MacOS Linux And Pypi
 
 on:
   repository_dispatch:
