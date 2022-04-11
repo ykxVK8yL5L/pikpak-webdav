@@ -207,7 +207,11 @@ impl WebdavDriveFileSystem {
             //     .error_for_status()?;
             // let data = res.text().await?;
             // let v:FilesList = serde_json::from_str(&data).unwrap();
-            let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0",&parent_file_id,pagetoken))
+            //let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken))
+            //let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0",&parent_file_id,pagetoken))
+            
+            
+            let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken))
             .await?
             .context("expect response")?;
             if(v.next_page_token.is_empty()||v.next_page_token==""){
