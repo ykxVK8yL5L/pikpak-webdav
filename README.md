@@ -1,3 +1,6 @@
+# pikpak个人邀请链接 有需要可以使用:https://toapp.mypikpak.com/activity/invited?code=221992
+
+
 # pikpak-webdav
 演示视频:https://youtu.be/Fkms3_qanZQ   
 pikpak的webdav的rust实现  还有很多问题 不支持复制、上传等功能主要是视频播放        
