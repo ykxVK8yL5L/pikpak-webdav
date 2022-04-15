@@ -4,9 +4,6 @@
 pikpak的webdav的rust实现  还有很多问题 不支持复制、上传等功能主要是视频播放        
 https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 
-
-## 目前因为文件列表api少传递了一些过滤参数导致已经删除的文件还会显示，无伤大雅  就先不修复了  等以后加啥功能了 一并修复
-
 映射端口:9867      
 其它的貌似也没啥说的  
 
