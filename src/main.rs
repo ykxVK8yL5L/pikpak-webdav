@@ -38,6 +38,9 @@ struct Opt {
     #[structopt(long, env = "PIKPAK_PASSWORD")]
     pikpak_password: String,
 
+    #[structopt(long, env = "PROXY_URL", default_value = "")]
+    proxy_url: String,
+
     /// Automatically generate index.html
     // #[structopt(short = "I", long)]
     // auto_index: bool,
@@ -80,7 +83,7 @@ async fn main() -> anyhow::Result<()> {
         password:opt.pikpak_password,
     };
 
-    let fs = WebdavDriveFileSystem::new(credentials,opt.root, opt.cache_size, opt.cache_ttl)
+    let fs = WebdavDriveFileSystem::new(credentials,opt.root, opt.cache_size, opt.cache_ttl,opt.proxy_url)
         .await
         .map_err(|_| {
             io::Error::new(
