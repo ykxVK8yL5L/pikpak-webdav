@@ -47,6 +47,7 @@ pub struct WebdavDriveFileSystem {
     uploading: Arc<DashMap<String, Vec<WebdavFile>>>,
     root: PathBuf,
     client:reqwest::Client,
+    proxy_url:String,
 }
 
 impl WebdavDriveFileSystem {
@@ -55,6 +56,7 @@ impl WebdavDriveFileSystem {
         root: String,
         cache_size: usize,
         cache_ttl: u64,
+        proxy_url: String
     ) -> Result<Self> {
         let dir_cache = Cache::new(cache_size, cache_ttl);
         debug!("dir cache initialized");
@@ -81,6 +83,7 @@ impl WebdavDriveFileSystem {
             credentials,
             auth_cache,
             dir_cache,
+            proxy_url,
             uploading: Arc::new(DashMap::new()),
             root,
             client,
@@ -103,7 +106,13 @@ impl WebdavDriveFileSystem {
         data.insert("client_secret", "dbw2OtmVEeuUvIptb1Coyg");
         data.insert("username", &self.credentials.username);
         data.insert("password", &self.credentials.password);
-       let url = format!("https://user.mypikpak.com/v1/auth/signin");
+
+        let mut rurl = format!("https://user.mypikpak.com/v1/auth/signin");
+        if self.proxy_url.len()>4{
+            rurl = format!("{}/https://user.mypikpak.com/v1/auth/signin",&self.proxy_url);
+        }
+
+       let url = rurl;
        let res = self
             .client
             .post(url)
@@ -211,7 +220,14 @@ impl WebdavDriveFileSystem {
             //let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0",&parent_file_id,pagetoken))
             
             
-            let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken))
+
+            let mut rurl = format!("https://cors.z13.workers.dev/https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken);
+            if self.proxy_url.len()>4{
+                rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&self.proxy_url,&parent_file_id,pagetoken);
+            }
+            let url = rurl;
+
+            let v: FilesList = self.request(url)
             .await?
             .context("expect response")?;
             if(v.next_page_token.is_empty()||v.next_page_token==""){
@@ -360,7 +376,14 @@ impl WebdavDriveFileSystem {
 
     async fn get_download_url(&self,file_id: &str) -> Result<String> {
         info!("get_download_url");
-        let res: WebdavFile = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files/{}",file_id.to_string()))
+
+        let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files/{}",file_id.to_string());
+        if self.proxy_url.len()>4{
+            rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files/{}",&self.proxy_url,file_id.to_string());
+        }
+
+        let url = rurl;
+        let res: WebdavFile = self.request(url)
             .await?
             .context("expect response")?;
         
