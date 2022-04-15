@@ -1,5 +1,3 @@
-# pikpak个人邀请链接 有需要可以使用:https://toapp.mypikpak.com/activity/invited?code=221992
-
 
 # pikpak-webdav
 演示视频:https://youtu.be/Fkms3_qanZQ   
