@@ -10,14 +10,24 @@ https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 映射端口:9867      
 其它的貌似也没啥说的  
 
-## 命令行格式[然后浏览器访问http://localhost:9867】      
+## 命令行格式[然后浏览器访问http://localhost:9867】 可选参数 --proxy-url xxxxxxxx     
 ```
 pikpak-webdav --host 0.0.0.0 --pikpak-user xxxx --pikpak-password xxxx 
 ```
 
+## 可用代理【未验证】
+https://cors.z13.workers.dev   
+https://cors.z14.workers.dev   
+https://cors.z15.workers.dev   
+https://cors.z16.workers.dev   
+https://cors.z17.workers.dev   
+https://cors.z18.workers.dev   
+
+
+
 ## 安装
 
-可以从 [GitHub Releases](https://github.com/ykxVK8yL5L/pikpak-webdav/releases) 页面下载预先构建的二进制包， 也可以使用 pip 从 PyPI 下载:
+可以从 [GitHub Releases](https://github.com/ykxVK8yL5L/pikpak-webdav/releases) 页面下载预先构建的二进制包， 也可以使用 pip 从 PyPI 下载(python几乎不更新功能不是最新):
 
 ```bash
 pip install pikpak-webdav
