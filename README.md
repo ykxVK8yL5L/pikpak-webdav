@@ -34,7 +34,7 @@ pip install pikpak-webdav
 
 
 
-Docker示例命令:
+Docker示例命令【如需代理加入-e PROXY_URL='XXXXXXXXX'】:
 ```
 docker run --name pikpak-webdav --restart=unless-stopped -p 9867:9867 -e PIKPAK_USER='XXXXXXXX' -e PIKPAK_PASSWORD='XXXXXXX' ykxvk8yl5l/pikpak-webdav:latest
 ```
