@@ -12,8 +12,7 @@ https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 pikpak-webdav --host 0.0.0.0 --pikpak-user xxxx --pikpak-password xxxx 
 ```
 
-## 可用代理【未验证】
-https://pikpak.1012157096.workers.dev     
+## 可用代理【未验证】     
 https://cors.z7.workers.dev      
 https://cors.z13.workers.dev   
 https://cors.z14.workers.dev   
