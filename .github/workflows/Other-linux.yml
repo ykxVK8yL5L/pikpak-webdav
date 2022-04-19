@@ -7,7 +7,7 @@ on:
       tag:
         description: 'Tag to release'
         required: true
-        default: 'v0.0.1'
+        default: 'v0.0.2'
 
 jobs:
   linux-others:
