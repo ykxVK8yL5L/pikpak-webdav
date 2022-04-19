@@ -42,9 +42,9 @@ docker run --name pikpak-webdav --restart=unless-stopped -p 9867:9867 -e PIKPAK_
 openwrt   
 x86_64的安装代码:   
 ```
-wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.1/pikpak-webdav_0.0.1_x86_64.ipk
-wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.1/luci-app-pikpak-webdav_1.0.0_all.ipk
-wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.1/luci-i18n-pikpak-webdav-zh-cn_1.0.0-1_all.ipk
+wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.2/pikpak-webdav_0.0.2_x86_64.ipk
+wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.2/luci-app-pikpak-webdav_1.0.0_all.ipk
+wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.2/luci-i18n-pikpak-webdav-zh-cn_1.0.0-2_all.ipk
 opkg install pikpak-webdav_0.0.1_x86_64.ipk
 opkg install luci-app-pikpak-webdav_1.0.0_all.ipk
 opkg install luci-i18n-pikpak-webdav-zh-cn_1.0.0-1_all.ipk
