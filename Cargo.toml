@@ -6,25 +6,25 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.51"
-bytes = "1.0.1"
-dashmap = "4.0.2"
-futures-util = "0.3"
-headers = "0.3.4"
-hyper = { version = "0.14.11", features = ["server"] }
-moka = { version = "0.6.0", default-features = false, features = ["future"] }
-openssl-probe = { version = "0.1.4", optional = true }
+anyhow = "=1.0.51"
+bytes = "=1.0.1"
+dashmap = "=4.0.2"
+futures-util = "=0.3"
+headers = "=0.3.4"
+hyper = { version = "=0.14.11", features = ["server"] }
+moka = { version = "=0.6.0", default-features = false, features = ["future"] }
+openssl-probe = { version = "=0.1.4", optional = true }
 openssl-sys = { version = "=0.9.68", optional = true }
-reqwest = { version = "0.11.7", default-features = false, features = ["json", "gzip", "blocking"] }
-serde = { version = "1.0.127", features = ["derive"] }
-serde_json = "1.0"
-structopt = "0.3.22"
-time = { version = "0.3", features = ["formatting", "parsing"] }
-tokio = { version = "1.10.0", features = ["rt-multi-thread", "io-util", "net", "time", "sync", "macros", "parking_lot", "fs"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "local-time"] }
-url = "2.2.2"
-webdav-handler = { version = "0.2.0", default-features = false, features = ["hyper"] }
+reqwest = { version = "=0.11.7", default-features = false, features = ["json", "gzip", "blocking"] }
+serde = { version = "=1.0.127", features = ["derive"] }
+serde_json = "=1.0"
+structopt = "=0.3.22"
+time = { version = "=0.3", features = ["formatting", "parsing"] }
+tokio = { version = "=1.10.0", features = ["rt-multi-thread", "io-util", "net", "time", "sync", "macros", "parking_lot", "fs"] }
+tracing = "=0.1"
+tracing-subscriber = { version = "=0.3", features = ["env-filter", "local-time"] }
+url = "=2.2.2"
+webdav-handler = { version = "=0.2.0", default-features = false, features = ["hyper"] }
 
 [features]
 default = ["rustls-tls", "atomic64"]
