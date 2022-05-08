@@ -40,8 +40,8 @@ jobs:
       - name: Install built wheel
         if: matrix.platform.arch != 'arm64'
         run: |
-          pip install aliyundrive-webdav --no-index --find-links dist --force-reinstall
-          aliyundrive-webdav --help
+          pip install pikpak-webdav --no-index --find-links dist --force-reinstall
+          pikpak-webdav --help
       - name: Upload wheels
         uses: actions/upload-artifact@v2
         with:
