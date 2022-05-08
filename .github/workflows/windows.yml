@@ -23,22 +23,18 @@ jobs:
         with:
           python-version: 3.9
           architecture: ${{ matrix.platform.arch }}
-      - name: Cache cargo build
-        uses: Swatinem/rust-cache@v1
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          default: true
       - name: Build wheels
-        if: matrix.platform.arch != 'arm64'
         uses: messense/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
           args: --release --out dist --no-sdist --strip
-      - name: Build wheels
-        if: matrix.platform.arch == 'arm64'
-        uses: messense/maturin-action@v1
-        with:
-          target: ${{ matrix.platform.target }}
-          args: --release --out dist --no-sdist --strip --cargo-extra-args="--no-default-features" --cargo-extra-args="--features atomic64,native-tls"
       - name: Install built wheel
-        if: matrix.platform.arch != 'arm64'
         run: |
           pip install pikpak-webdav --no-index --find-links dist --force-reinstall
           pikpak-webdav --help
@@ -72,4 +68,3 @@ jobs:
           file: target/${{ matrix.platform.target }}/release/pikpak-webdav.zip
           overwrite: true
           tag: "refs/tags/${{ github.event.inputs.tag }}"
- 
