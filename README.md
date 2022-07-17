@@ -12,7 +12,13 @@ https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 pikpak-webdav --host 0.0.0.0 --pikpak-user xxxx --pikpak-password xxxx 
 ```
 
-## 可用代理【未验证】     
+## 可用代理【未验证】 
+https://api.13pikpak.cf
+https://api.14pikpak.cf
+https://api.15pikpak.cf
+https://api.16pikpak.cf
+https://api.17pikpak.cf
+https://api.18pikpak.cf    
 https://cors.z7.workers.dev      
 https://cors.z13.workers.dev   
 https://cors.z14.workers.dev   
