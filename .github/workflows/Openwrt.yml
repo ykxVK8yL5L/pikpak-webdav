@@ -65,8 +65,7 @@ jobs:
             cat feeds.conf
             ./scripts/feeds update -a > /dev/null
             make defconfig
-            ./scripts/feeds install -d y -p "pikpak" -f -a
-
+            ./scripts/feeds install -d y -f -a
 
             make package/pikpak-webdav/compile V=s
             make package/luci-app-pikpak-webdav/compile V=s
