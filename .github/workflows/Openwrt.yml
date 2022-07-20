@@ -48,7 +48,7 @@ jobs:
             gettext git java-propose-classpath libelf-dev libncurses5-dev \
             libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
             python3-distutils python3-setuptools python3-dev rsync subversion \
-            swig time xsltproc zlib1g-dev
+            swig time xsltproc zlib1g-dev po2lmo
         - name: Install OpenWrt SDK
           run: |
             wget -O openwrt-sdk.tar.xz ${{ matrix.target.sdk }}
@@ -66,6 +66,7 @@ jobs:
             ./scripts/feeds update -a > /dev/null
             make defconfig
             ./scripts/feeds install -d y -p "pikpak" -f -a
+
 
             make package/pikpak-webdav/compile V=s
             make package/luci-app-pikpak-webdav/compile V=s
