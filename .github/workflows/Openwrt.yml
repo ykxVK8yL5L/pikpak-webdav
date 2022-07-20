@@ -66,7 +66,7 @@ jobs:
             ./scripts/feeds update -a > /dev/null
             make defconfig
             ./scripts/feeds install -d y -p "pikpak" -f -a
-            make package/feeds/luci/luci-base/compile V=99
+
             make package/pikpak-webdav/compile V=s
             make package/luci-app-pikpak-webdav/compile V=s
             tree bin/packages/
