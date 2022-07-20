@@ -14,7 +14,7 @@ msgid "Pikpak Username"
 msgstr "Pikpak登陆用户名"
 
 msgid "Pikpak Password"
-msgstr "Pikpak登陆用户名"
+msgstr "Pikpak登陆密码"
 
 msgid "Host"
 msgstr "监听主机"
