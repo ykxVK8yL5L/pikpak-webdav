@@ -3,7 +3,7 @@
 演示视频:https://youtu.be/Fkms3_qanZQ   
 pikpak的webdav的rust实现  还有很多问题 不支持复制、上传等功能主要是视频播放        
 https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
-
+## 有网友反馈非邮箱登陆会登陆失败，请使用邮箱、密码方式登陆 
 映射端口:9867      
 其它的貌似也没啥说的  
 
