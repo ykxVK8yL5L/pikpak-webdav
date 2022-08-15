@@ -31,7 +31,7 @@ use serde::Serialize;
 use serde_json::json;
 use reqwest::header::RANGE;
 
-pub use crate::model::{WebdavFile, DateTime, FileType,FilesList,Credentials,RefreshTokenResponse,CreateFolderRequest,DelFileRequest,RenameFileRequest,MoveFileRequest,MoveTo};
+pub use crate::model::*;
 
 
 const ORIGIN: &str = "https://api-drive.mypikpak.com/drive/v1/files";
@@ -392,6 +392,18 @@ impl WebdavDriveFileSystem {
         Ok(())
     }
 
+    pub async fn get_useage_quota(&self) -> Result<(u64, u64)> {
+        let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/about");
+        if self.proxy_url.len()>4{
+            rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/about",&self.proxy_url);
+        }
+        let url = rurl;
+        let res: QuotaResponse = self.request(url)
+        .await?
+        .context("expect response")?;
+
+        Ok((res.quota.usage, res.quota.limit))
+    }
 
     async fn list_files_and_cache( &self, path_str: String, parent_file_id: String)-> Result<Vec<WebdavFile>>{
         //println!("list_files_and_cache {}",path_str);
@@ -845,6 +857,16 @@ impl DavFileSystem for WebdavDriveFileSystem {
         .boxed()
     }
 
+    fn get_quota(&self) -> FsFuture<(u64, Option<u64>)> {
+        async move {
+            let (used, total) = self.get_useage_quota().await.map_err(|err| {
+                error!(error = %err, "get quota failed");
+                FsError::GeneralFailure
+            })?;
+            Ok((used, Some(total)))
+        }
+        .boxed()
+    }
 
     fn metadata<'a>(&'a self, path: &'a DavPath) -> FsFuture<Box<dyn DavMetaData>> {
         let path = self.normalize_dav_path(path);

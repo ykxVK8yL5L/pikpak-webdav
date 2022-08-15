@@ -106,6 +106,29 @@ pub enum FileType {
     File,
 }
 
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct QuotaResponse {
+    pub kind: String,
+    pub expires_at: String,
+    pub quota: Quota,
+}
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct Quota {
+    pub kind: String,
+    pub limit: u64,
+    pub usage: u64,
+    pub usage_in_trash: u64,
+    pub play_times_limit: u64,
+    pub play_times_usage:u64,
+}
+
+
+
+
+
+
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct WebdavFile {
     pub kind: String,
