@@ -29,6 +29,16 @@ pub struct Credentials {
 }
 
 
+#[derive(Debug, Clone, Serialize)]
+pub struct CreateFolderRequest<'a> {
+    pub kind: &'a str,
+    pub name: &'a str,
+    pub parent_id: &'a str,
+}
+
+
+
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct RefreshTokenResponse {
     pub access_token: String,

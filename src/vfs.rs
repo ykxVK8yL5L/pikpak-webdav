@@ -31,7 +31,7 @@ use serde::Serialize;
 use serde_json::json;
 use reqwest::header::RANGE;
 
-pub use crate::model::{WebdavFile, DateTime, FileType,FilesList,Credentials,RefreshTokenResponse};
+pub use crate::model::{WebdavFile, DateTime, FileType,FilesList,Credentials,RefreshTokenResponse,CreateFolderRequest};
 
 
 const ORIGIN: &str = "https://api-drive.mypikpak.com/drive/v1/files";
@@ -199,8 +199,92 @@ impl WebdavDriveFileSystem {
     }
 
 
+
+    async fn post_request<T, U>(&self, url: String, req: &T) -> Result<Option<U>>
+    where
+        T: Serialize + ?Sized,
+        U: DeserializeOwned,
+    {
+        let access_token_key = "access_token".to_string();
+        let access_token = self.auth_cache.get(&access_token_key).unwrap();
+        let url = reqwest::Url::parse(&url)?;
+        let res = self
+            .client
+            .post(url.clone())
+            .json(&req)
+            .bearer_auth(&access_token)
+            .send()
+            .await?
+            .error_for_status();
+        match res {
+            Ok(res) => {
+                if res.status() == StatusCode::NO_CONTENT {
+                    return Ok(None);
+                }
+                let res = res.json::<U>().await?;
+                Ok(Some(res))
+            }
+            Err(err) => {
+                match err.status() {
+                    Some(
+                        status_code
+                        @
+                        // 4xx
+                        (StatusCode::UNAUTHORIZED
+                        | StatusCode::REQUEST_TIMEOUT
+                        | StatusCode::TOO_MANY_REQUESTS
+                        // 5xx
+                        | StatusCode::INTERNAL_SERVER_ERROR
+                        | StatusCode::BAD_GATEWAY
+                        | StatusCode::SERVICE_UNAVAILABLE
+                        | StatusCode::GATEWAY_TIMEOUT),
+                    ) => {
+                        if status_code == StatusCode::UNAUTHORIZED {
+                            // refresh token and retry
+                            self.update_token().await;
+                        } else {
+                            // wait for a while and retry
+                            time::sleep(Duration::from_secs(1)).await;
+                        }
+                        let res = self
+                            .client
+                            .post(url)
+                            .json(&req)
+                            .bearer_auth(&access_token)
+                            .send()
+                            .await?
+                            .error_for_status()?;
+                        if res.status() == StatusCode::NO_CONTENT {
+                            return Ok(None);
+                        }
+                        let res = res.json::<U>().await?;
+                        Ok(Some(res))
+                    }
+                    _ => Err(err.into()),
+                }
+            }
+        }
+    }
+
+
+
+    async fn create_folder(&self, parent_id:&str, folder_name: &str) -> Result<WebdavFile> {
+        let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files");
+        if self.proxy_url.len()>4{
+            rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files",&self.proxy_url);
+        }
+        let url = rurl;
+        let req = CreateFolderRequest{kind:"drive#folder",name:folder_name,parent_id:parent_id};
+
+        let res: WebdavFile = self.post_request(url, &req)
+        .await?
+        .context("expect response")?;
+        Ok(res)
+    }
+
+
     async fn list_files_and_cache( &self, path_str: String, parent_file_id: String)-> Result<Vec<WebdavFile>>{
-        println!("list_files_and_cache {}",path_str);
+        //println!("list_files_and_cache {}",path_str);
         let mut pagetoken = "".to_string();
         let mut files = Vec::new();
         let access_token_key = "access_token".to_string();
@@ -219,8 +303,6 @@ impl WebdavDriveFileSystem {
             //let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken))
             //let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0",&parent_file_id,pagetoken))
             
-            
-
             let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken);
             if self.proxy_url.len()>4{
                 rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&self.proxy_url,&parent_file_id,pagetoken);
@@ -393,21 +475,6 @@ impl WebdavDriveFileSystem {
             Ok(res.web_content_link.clone())
         }
 
-
-        // let access_token_key = "access_token".to_string();
-        // let access_token = self.auth_cache.get(&access_token_key).unwrap();
-        // let url = format!("https://api-drive.mypikpak.com/drive/v1/files/{}",file_id.to_string());
-        // let res = self.client
-        //     .get(url)
-        //     .bearer_auth(access_token)
-        //     .send()
-        //     .await?
-        //     .error_for_status()?;
-
-        // let data = res.text().await?;
-        // let v:WebdavFile = serde_json::from_str(&data).unwrap();
-        // Ok(v.medias[0].link.url.clone())
-        
     }
 
 
@@ -527,6 +594,34 @@ impl DavFileSystem for WebdavDriveFileSystem {
         .boxed()
     }
 
+   
+
+
+    fn create_dir<'a>(&'a self, dav_path: &'a DavPath) -> FsFuture<()> {
+        let path = self.normalize_dav_path(dav_path);
+        //println!("create_dir {}",path.display());
+        async move {
+            let parent_path = path.parent().ok_or(FsError::NotFound)?;
+            let parent_file = self
+                .get_file(parent_path.to_path_buf())
+                .await?
+                .ok_or(FsError::NotFound)?;
+            
+            if !(parent_file.kind==String::from("drive#folder")) {
+                return Err(FsError::Forbidden);
+            }
+            if let Some(name) = path.file_name() {
+                let name = name.to_string_lossy().into_owned();
+                self.create_folder(&parent_file.id,&name).await;
+                self.dir_cache.invalidate(parent_path).await;
+                Ok(())
+            } else {
+                Err(FsError::Forbidden)
+            }
+        }
+        .boxed()
+    }
+
     fn metadata<'a>(&'a self, path: &'a DavPath) -> FsFuture<Box<dyn DavMetaData>> {
         let path = self.normalize_dav_path(path);
         info!(path = %path.display(), "fs: metadata");
@@ -536,6 +631,10 @@ impl DavFileSystem for WebdavDriveFileSystem {
         }
         .boxed()
     }
+
+
+
+
 
 }
 
