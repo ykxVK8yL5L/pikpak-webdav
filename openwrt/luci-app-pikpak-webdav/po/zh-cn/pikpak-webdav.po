@@ -72,5 +72,5 @@ msgid "Restrict access to a folder of Pikpak, defaults to / which means no restr
 msgstr "限制只能访问该云盘目录，默认为 / 表示不限制，注意这个参数不是本地磁盘路径"
 
 msgid "Delete file permanently instead of trashing"
-msgstr "删除文件不放入回收站"
+msgstr "删除文件不放入回收站【未实现】"
 

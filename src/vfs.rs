@@ -31,7 +31,7 @@ use serde::Serialize;
 use serde_json::json;
 use reqwest::header::RANGE;
 
-pub use crate::model::{WebdavFile, DateTime, FileType,FilesList,Credentials,RefreshTokenResponse,CreateFolderRequest};
+pub use crate::model::{WebdavFile, DateTime, FileType,FilesList,Credentials,RefreshTokenResponse,CreateFolderRequest,DelFileRequest,RenameFileRequest,MoveFileRequest,MoveTo};
 
 
 const ORIGIN: &str = "https://api-drive.mypikpak.com/drive/v1/files";
@@ -54,7 +54,7 @@ impl WebdavDriveFileSystem {
     pub async fn new(
         credentials:Credentials,
         root: String,
-        cache_size: usize,
+        cache_size: u64,
         cache_ttl: u64,
         proxy_url: String
     ) -> Result<Self> {
@@ -267,6 +267,71 @@ impl WebdavDriveFileSystem {
     }
 
 
+    async fn patch_request<T, U>(&self, url: String, req: &T) -> Result<Option<U>>
+    where
+        T: Serialize + ?Sized,
+        U: DeserializeOwned,
+    {
+        let access_token_key = "access_token".to_string();
+        let access_token = self.auth_cache.get(&access_token_key).unwrap();
+        let url = reqwest::Url::parse(&url)?;
+        let res = self
+            .client
+            .patch(url.clone())
+            .json(&req)
+            .bearer_auth(&access_token)
+            .send()
+            .await?
+            .error_for_status();
+        match res {
+            Ok(res) => {
+                if res.status() == StatusCode::NO_CONTENT {
+                    return Ok(None);
+                }
+                let res = res.json::<U>().await?;
+                Ok(Some(res))
+            }
+            Err(err) => {
+                match err.status() {
+                    Some(
+                        status_code
+                        @
+                        // 4xx
+                        (StatusCode::UNAUTHORIZED
+                        | StatusCode::REQUEST_TIMEOUT
+                        | StatusCode::TOO_MANY_REQUESTS
+                        // 5xx
+                        | StatusCode::INTERNAL_SERVER_ERROR
+                        | StatusCode::BAD_GATEWAY
+                        | StatusCode::SERVICE_UNAVAILABLE
+                        | StatusCode::GATEWAY_TIMEOUT),
+                    ) => {
+                        if status_code == StatusCode::UNAUTHORIZED {
+                            // refresh token and retry
+                            self.update_token().await;
+                        } else {
+                            // wait for a while and retry
+                            time::sleep(Duration::from_secs(1)).await;
+                        }
+                        let res = self
+                            .client
+                            .post(url)
+                            .json(&req)
+                            .bearer_auth(&access_token)
+                            .send()
+                            .await?
+                            .error_for_status()?;
+                        if res.status() == StatusCode::NO_CONTENT {
+                            return Ok(None);
+                        }
+                        let res = res.json::<U>().await?;
+                        Ok(Some(res))
+                    }
+                    _ => Err(err.into()),
+                }
+            }
+        }
+    }
 
     async fn create_folder(&self, parent_id:&str, folder_name: &str) -> Result<WebdavFile> {
         let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files");
@@ -280,6 +345,51 @@ impl WebdavDriveFileSystem {
         .await?
         .context("expect response")?;
         Ok(res)
+    }
+
+    pub async fn remove_file(&self, file_id: &str) -> Result<()> {
+        //let trashurl = "https://api-drive.mypikpak.com/drive/v1/files:batchTrash"    //放入回收站
+        //let deleteurl = "https://api-drive.mypikpak.com/drive/v1/files:batchDelete"   //彻底删除
+        let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files:batchDelete");
+        if self.proxy_url.len()>4{
+            rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files:batchDelete",&self.proxy_url);
+        }
+        let url = rurl;
+        let req = DelFileRequest{ids:vec![file_id.to_string()]};
+        self.post_request(url, &req)
+        .await?
+        .context("expect response")?;
+        Ok(())
+    }
+
+    pub async fn rename_file(&self, file_id: &str, new_name: &str) -> Result<()> {
+        //println!("rename file {} to {}", file_id, new_name);
+        let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files/{}",file_id);
+        if self.proxy_url.len()>4{
+            rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files/{}",&self.proxy_url,file_id);
+        }
+        let url = rurl;
+        let req = RenameFileRequest{name:new_name};
+        self.patch_request(url, &req)
+        .await?
+        .context("expect response")?;
+        Ok(())
+    }
+
+
+    pub async fn move_file(&self, file_id: &str, new_parent_id: &str) -> Result<()> {
+        let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files:batchMove");
+        if self.proxy_url.len()>4{
+            rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files:batchMove",&self.proxy_url);
+        }
+        let url = rurl;
+        let req = MoveFileRequest{ids:vec![file_id.to_string()],to:MoveTo { parent_id: new_parent_id.to_string()}};
+
+        self.post_request(url, &req)
+        .await?
+        .context("expect response")?;
+
+        Ok(())
     }
 
 
@@ -381,7 +491,6 @@ impl WebdavDriveFileSystem {
         };
         Ok(files)
     }
-   
 
     pub async fn get_by_path(&self, path: &str) -> Result<Option<WebdavFile>> {
         info!(path = %path, "get file by path");
@@ -412,15 +521,19 @@ impl WebdavDriveFileSystem {
     }
 
 
-
     async fn get_file(&self, path: PathBuf) -> Result<Option<WebdavFile>, FsError> {
 
         let path_str = path.to_string_lossy().into_owned();
         info!(path = %path_str, "get_file");
 
-        let pos = path_str.rfind('/').unwrap();
-        let path_length = path_str.len()-pos;
-        let path_name: String = path_str.chars().skip(pos+1).take(path_length).collect();
+        // let pos = path_str.rfind('/').unwrap();
+        // let path_length = path_str.len()-pos;
+        // let path_name: String = path_str.chars().skip(pos+1).take(path_length).collect();
+
+        let parts: Vec<&str> = path_str.split('/').collect();
+        let parts_len = parts.len();
+        let path_name = parts[parts_len - 1];
+
         // 忽略 macOS 上的一些特殊文件
         if path_name == ".DS_Store" || path_name.starts_with("._") {
             return Err(FsError::NotFound);
@@ -621,6 +734,117 @@ impl DavFileSystem for WebdavDriveFileSystem {
         }
         .boxed()
     }
+
+
+    fn remove_dir<'a>(&'a self, dav_path: &'a DavPath) -> FsFuture<()> {
+        let path = self.normalize_dav_path(dav_path);
+        debug!(path = %path.display(), "fs: remove_dir");
+        //println!("remove_dir {}",path.display());
+        async move {
+
+            let file = self
+                .get_file(path.clone())
+                .await?
+                .ok_or(FsError::NotFound)?;
+
+
+
+            if !(file.kind==String::from("drive#folder")) {
+                return Err(FsError::Forbidden);
+            }
+
+            self.remove_file(&file.id)
+                .await
+                .map_err(|err| {
+                    error!(path = %path.display(), error = %err, "remove directory failed");
+                    FsError::GeneralFailure
+                })?;
+            self.dir_cache.invalidate(&path).await;
+            self.dir_cache.invalidate_parent(&path).await;
+            Ok(())
+        }
+        .boxed()
+    }
+
+
+    fn remove_file<'a>(&'a self, dav_path: &'a DavPath) -> FsFuture<()> {
+        let path = self.normalize_dav_path(dav_path);
+        debug!(path = %path.display(), "fs: remove_file");
+        //println!("remove_file {}",path.display());
+        async move {
+
+            let file = self
+                .get_file(path.clone())
+                .await?
+                .ok_or(FsError::NotFound)?;
+
+            self.remove_file(&file.id)
+                .await
+                .map_err(|err| {
+                    error!(path = %path.display(), error = %err, "remove file failed");
+                    FsError::GeneralFailure
+                })?;
+            self.dir_cache.invalidate_parent(&path).await;
+            Ok(())
+        }
+        .boxed()
+    }
+
+
+    fn rename<'a>(&'a self, from_dav: &'a DavPath, to_dav: &'a DavPath) -> FsFuture<()> {
+        let from = self.normalize_dav_path(from_dav);
+        let to = self.normalize_dav_path(to_dav);
+        debug!(from = %from.display(), to = %to.display(), "fs: rename");
+        //println!("rename {} {}",from.display(),to.display());
+        async move {
+            let is_dir;
+            if from.parent() == to.parent() {
+                // rename
+                if let Some(name) = to.file_name() {
+                    let file = self
+                        .get_file(from.clone())
+                        .await?
+                        .ok_or(FsError::NotFound)?;
+                    is_dir = if file.kind == "drive#folder" {
+                            true
+                        } else {
+                            false
+                        };
+                    let name = name.to_string_lossy().into_owned();
+                    self.rename_file(&file.id, &name).await;
+                } else {
+                    return Err(FsError::Forbidden);
+                }
+            } else {
+                // move
+                let file = self
+                    .get_file(from.clone())
+                    .await?
+                    .ok_or(FsError::NotFound)?;
+                is_dir = if file.kind == "drive#folder" {
+                    true
+                } else {
+                    false
+                };
+                let to_parent_file = self
+                    .get_file(to.parent().unwrap().to_path_buf())
+                    .await?
+                    .ok_or(FsError::NotFound)?;
+                let new_name = to_dav.file_name();
+                self.move_file(&file.id, &to_parent_file.id).await;
+            }
+
+
+            if is_dir {
+                self.dir_cache.invalidate(&from).await;
+            }
+            self.dir_cache.invalidate_parent(&from).await;
+            self.dir_cache.invalidate_parent(&to).await;
+            Ok(())
+        }
+        .boxed()
+    }
+
 
     fn metadata<'a>(&'a self, path: &'a DavPath) -> FsFuture<Box<dyn DavMetaData>> {
         let path = self.normalize_dav_path(path);

@@ -55,8 +55,8 @@ cache_size = e:option(Value, "proxy_url", translate("Proxy Url"))
 cache_size.default = ""
 
 
-no_trash = e:option(Flag, "no_trash", translate("Delete file permanently instead of trashing"))
-no_trash.rmempty = false
+-- no_trash = e:option(Flag, "no_trash", translate("Delete file permanently instead of trashing"))
+-- no_trash.rmempty = false
 
 
 debug = e:option(Flag, "debug", translate("Debug Mode"))

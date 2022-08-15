@@ -36,6 +36,32 @@ pub struct CreateFolderRequest<'a> {
     pub parent_id: &'a str,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct DelFileRequest {
+    pub ids: Vec<String>,
+}
+
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MoveFileRequest {
+    pub ids: Vec<String>,
+    pub to: MoveTo,
+}
+
+
+#[derive(Debug, Clone, Serialize)]
+pub struct MoveTo {
+    pub parent_id: String,
+}
+
+
+
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RenameFileRequest<'a>{
+    pub name: &'a str,
+}
+
 
 
 
