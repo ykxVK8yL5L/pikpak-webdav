@@ -31,7 +31,7 @@ host.default = "0.0.0.0"
 host.datatype = "ipaddr"
 
 port = e:option(Value, "port", translate("Port"))
-port.default = "8080"
+port.default = "9867"
 port.datatype = "port"
 
 auth_user = e:option(Value, "auth_user", translate("Username"))

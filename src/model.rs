@@ -142,6 +142,7 @@ pub struct WebdavFile {
     pub created_time: DateTime,
     pub modified_time: DateTime,
     pub medias:Vec<Media>,
+    pub hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -211,6 +212,7 @@ impl WebdavFile {
             mime_type: "".to_string(),
             web_content_link: "".to_string(),
             medias:Vec::new(),
+            hash: Some("".to_string()),
         }
     }
 }

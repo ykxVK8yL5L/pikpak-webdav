@@ -48,6 +48,9 @@ pub struct WebdavDriveFileSystem {
     root: PathBuf,
     client:reqwest::Client,
     proxy_url:String,
+    upload_buffer_size: usize,
+    skip_upload_same_size: bool,
+    prefer_http_download: bool,
 }
 
 impl WebdavDriveFileSystem {
@@ -56,7 +59,10 @@ impl WebdavDriveFileSystem {
         root: String,
         cache_size: u64,
         cache_ttl: u64,
-        proxy_url: String
+        proxy_url: String,
+        upload_buffer_size: usize,
+        skip_upload_same_size: bool,
+        prefer_http_download: bool,
     ) -> Result<Self> {
         let dir_cache = Cache::new(cache_size, cache_ttl);
         debug!("dir cache initialized");
@@ -87,6 +93,9 @@ impl WebdavDriveFileSystem {
             uploading: Arc::new(DashMap::new()),
             root,
             client,
+            upload_buffer_size,
+            skip_upload_same_size,
+            prefer_http_download,
         };
 
         if let Err(err) = driver.update_token().await {
@@ -381,6 +390,21 @@ impl WebdavDriveFileSystem {
         let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files:batchMove");
         if self.proxy_url.len()>4{
             rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files:batchMove",&self.proxy_url);
+        }
+        let url = rurl;
+        let req = MoveFileRequest{ids:vec![file_id.to_string()],to:MoveTo { parent_id: new_parent_id.to_string()}};
+
+        self.post_request(url, &req)
+        .await?
+        .context("expect response")?;
+
+        Ok(())
+    }
+
+    pub async fn copy_file(&self, file_id: &str, new_parent_id: &str) -> Result<()> {
+        let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files:batchCopy");
+        if self.proxy_url.len()>4{
+            rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files:batchCopy",&self.proxy_url);
         }
         let url = rurl;
         let req = MoveFileRequest{ids:vec![file_id.to_string()],to:MoveTo { parent_id: new_parent_id.to_string()}};
@@ -688,6 +712,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     mime_type: "".to_string(),
                     web_content_link: "".to_string(),
                     medias:Vec::new(),
+                    hash:Some("".to_string()),
                 };
 
                 AliyunDavFile::new(self.clone(), file, parent_file.id)
@@ -857,6 +882,32 @@ impl DavFileSystem for WebdavDriveFileSystem {
         .boxed()
     }
 
+
+    fn copy<'a>(&'a self, from_dav: &'a DavPath, to_dav: &'a DavPath) -> FsFuture<()> {
+        let from = self.normalize_dav_path(from_dav);
+        let to = self.normalize_dav_path(to_dav);
+        debug!(from = %from.display(), to = %to.display(), "fs: copy");
+        async move {
+            let file = self
+                .get_file(from.clone())
+                .await?
+                .ok_or(FsError::NotFound)?;
+            let to_parent_file = self
+                .get_file(to.parent().unwrap().to_path_buf())
+                .await?
+                .ok_or(FsError::NotFound)?;
+            let new_name = to_dav.file_name();
+            self.copy_file(&file.id, &to_parent_file.id).await;
+
+            self.dir_cache.invalidate(&to).await;
+            self.dir_cache.invalidate_parent(&to).await;
+            Ok(())
+        }
+        .boxed()
+    }
+
+
+
     fn get_quota(&self) -> FsFuture<(u64, Option<u64>)> {
         async move {
             let (used, total) = self.get_useage_quota().await.map_err(|err| {
@@ -886,21 +937,25 @@ impl DavFileSystem for WebdavDriveFileSystem {
 
 #[derive(Debug, Clone)]
 struct UploadState {
+    size: u64,
     buffer: BytesMut,
     chunk_count: u64,
     chunk: u64,
     upload_id: String,
     upload_urls: Vec<String>,
+    sha1: Option<String>,
 }
 
 impl Default for UploadState {
     fn default() -> Self {
         Self {
+            size: 0,
             buffer: BytesMut::new(),
             chunk_count: 0,
             chunk: 1,
             upload_id: String::new(),
             upload_urls: Vec::new(),
+            sha1: None,
         }
     }
 }
@@ -945,8 +1000,8 @@ impl AliyunDavFile {
         })
     }
 
-    async fn prepare_for_upload(&mut self) -> Result<(), FsError> {
-        Ok(())
+    async fn prepare_for_upload(&mut self) -> Result<bool, FsError> {
+        Ok(true)
     }
 
     async fn maybe_upload_chunk(&mut self, remaining: bool) -> Result<(), FsError> {
@@ -974,6 +1029,14 @@ impl DavFile for AliyunDavFile {
 
     fn write_bytes(&mut self, buf: Bytes) -> FsFuture<()> {
         debug!(file_id = %self.file.id, file_name = %self.file.name, "file: write_bytes");
+        async move {
+            Ok(())
+        }
+        .boxed()
+    }
+
+    fn flush(&mut self) -> FsFuture<()> {
+        debug!(file_id = %self.file.id, file_name = %self.file.name, "file: flush");
         async move {
             Ok(())
         }
@@ -1038,13 +1101,7 @@ impl DavFile for AliyunDavFile {
         .boxed()
     }
 
-    fn flush(&mut self) -> FsFuture<()> {
-        debug!(file_id = %self.file.id, file_name = %self.file.name, "file: flush");
-        async move {
-            Ok(())
-        }
-        .boxed()
-    }
+   
 }
 
 fn is_url_expired(url: &str) -> bool {

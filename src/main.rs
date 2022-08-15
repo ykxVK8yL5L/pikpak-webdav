@@ -47,6 +47,10 @@ struct Opt {
     /// Read/download buffer size in bytes, defaults to 10MB
     #[structopt(short = "S", long, default_value = "10485760")]
     read_buffer_size: usize,
+
+    #[structopt(long, default_value = "16777216")]
+    upload_buffer_size: usize,
+
     /// Directory entries cache size
     #[structopt(long, default_value = "1000")]
     cache_size: u64,
@@ -83,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
         password:opt.pikpak_password,
     };
 
-    let fs = WebdavDriveFileSystem::new(credentials,opt.root, opt.cache_size, opt.cache_ttl,opt.proxy_url)
+    let fs = WebdavDriveFileSystem::new(credentials,opt.root, opt.cache_size, opt.cache_ttl,opt.proxy_url,opt.upload_buffer_size,false,false)
         .await
         .map_err(|_| {
             io::Error::new(

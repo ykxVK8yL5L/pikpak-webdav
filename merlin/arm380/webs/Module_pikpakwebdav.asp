@@ -92,7 +92,7 @@
                                                                     </tr>
                                                                     <tr id="port_tr">
                                                                         <th>监听端口</th>
-                                                                        <td><input type="text" id="pikpakwebdav_port" value="<% dbus_get_def("pikpakwebdav_port", "8080"); %>" class="input_ss_table"></td>
+                                                                        <td><input type="text" id="pikpakwebdav_port" value="<% dbus_get_def("pikpakwebdav_port", "9867"); %>" class="input_ss_table"></td>
                                                                     </tr>
                                                                     <tr id="auth_user_tr">
                                                                         <th>用户名</th>
