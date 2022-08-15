@@ -71,5 +71,14 @@ OpenWrt 路由器 CPU 架构如下表（欢迎补充）：
 > Tips: 不清楚 CPU 架构类型可通过运行 `opkg print-architecture` 命令查询。
 
 
+## Koolshare 梅林固件
+
+[GitHub Releases](https://github.com/ykxVK8yL5L/pikpak-webdav/releases/tag/v0.0.2) 中有预编译包 `pikpakwebdav-merlin-arm*.tar.gz`
+， 目前提供了旧的 arm380 和兼容 arm384/386 固件的版本，可在下载后在软件中心离线安装。
+
+【由于本人没有梅林设备，软件可用性未知，欢迎使用反馈】   
+
+
+
 参考项目为:
 https://github.com/messense/aliyundrive-webdav
