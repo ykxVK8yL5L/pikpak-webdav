@@ -35,7 +35,7 @@
             var _responseLen;
             var noChange = 0;
             var x = 5;
-            var params_inputs = ['pikpakwebdav_user','pikpakwebdav_password','pikpakwebdav_proxy_url', 'pikpakwebdav_port', 'pikpakwebdav_auth_user', 'pikpakwebdav_auth_password', 'pikpakwebdav_read_buffer_size', 'pikpakwebdav_cache_size', 'pikpakwebdav_root'];
+            var params_inputs = ['pikpakwebdav_user','pikpakwebdav_password','pikpakwebdav_proxy_url', 'pikpakwebdav_port', 'pikpakwebdav_auth_user', 'pikpakwebdav_auth_password', 'pikpakwebdav_read_buffer_size', 'pikpakwebdav_cache_size','pikpakwebdav_cache_ttl', 'pikpakwebdav_root'];
             var params_check = ['pikpakwebdav_enable', 'pikpakwebdav_public'];
             function init() {
                 show_menu(menu_hook);
@@ -89,6 +89,7 @@
                     document.getElementById("auth_password_tr").style.display = "";
                     document.getElementById("read_buffer_size_tr").style.display = "";
                     document.getElementById("cache_size_tr").style.display = "";
+                    document.getElementById("cache_ttl_tr").style.display = "";
                     document.getElementById("public_table").style.display = "";
                 } else {
                     document.getElementById("state_tr").style.display = "none";
@@ -101,6 +102,7 @@
                     document.getElementById("auth_password_tr").style.display = "none";
                     document.getElementById("read_buffer_size_tr").style.display = "none";
                     document.getElementById("cache_size_tr").style.display = "none";
+                    document.getElementById("cache_ttl_tr").style.display = "none";
                     document.getElementById("public_table").style.display = "none";
                 }
 
@@ -147,6 +149,7 @@
                     alert("下载缓冲大小不能为空！！！");
                     return false;
                 }
+
                 if(!$.trim($('#pikpakwebdav_cache_size').val())){
                     alert("目录缓存不能为空！！！");
                     return false;
@@ -355,7 +358,7 @@
                                                                     </tr>
                                                                     <tr id="auth_password_tr">
                                                                         <th>密码</th>
-                                                                        <td><input type="text" id="pikpakwebdav_auth_password" class="input_15_table" value=""></td>
+                                                                        <td><input type="password" id="pikpakwebdav_auth_password" class="input_15_table" value=""></td>
                                                                     </tr>
                                                                     <tr id="read_buffer_size_tr">
                                                                         <th>下载缓冲大小(bytes)</th>
@@ -364,6 +367,10 @@
                                                                     <tr id="cache_size_tr">
                                                                         <th>目录缓存大小</th>
                                                                         <td><input type="text" id="pikpakwebdav_cache_size" value="1000" class="input_15_table"></td>
+                                                                    </tr>
+                                                                    <tr id="cache_ttl_tr">
+                                                                        <th>目录缓存过期时间（单位为秒）</th>
+                                                                        <td><input type="text" id="pikpakwebdav_cache_ttl" value="600" class="input_15_table"></td>
                                                                     </tr>
                                                                 </tbody>
                                                             </table>

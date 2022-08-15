@@ -4,7 +4,7 @@
 pikpak的webdav的rust实现  还有很多问题 不支持复制、上传等功能主要是视频播放        
 https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 ###  群晖Docker可能会运行失败 请直接在命令行执行docker run命令 或去除Docker管理界面的path变量演示视频:https://youtu.be/M2OFB1gYU4w
-## 有网友反馈非邮箱登陆会登陆失败，请使用邮箱、密码方式登陆 
+## 有网友反馈非邮箱登陆会登陆失败，请使用邮箱、密码方式登陆  google账号登陆的记得到pikpak后台设置密码
 映射端口:9867      
 其它的貌似也没啥说的  
 
@@ -75,9 +75,6 @@ OpenWrt 路由器 CPU 架构如下表（欢迎补充）：
 
 [GitHub Releases](https://github.com/ykxVK8yL5L/pikpak-webdav/releases/tag/v0.0.2) 中有预编译包 `pikpakwebdav-merlin-arm*.tar.gz`
 ， 目前提供了旧的 arm380 和兼容 arm384/386 固件的版本，可在下载后在软件中心离线安装。
-
-【由于本人没有梅林设备，软件可用性未知，欢迎使用反馈】   
-
 
 
 参考项目为:

@@ -642,6 +642,35 @@ impl WebdavDriveFileSystem {
 
     }
 
+
+    pub async fn upload(&self, file:&WebdavFile, data: Bytes) ->  Result<()> {
+        let mut url = format!("https://api-drive.mypikpak.com/drive/v1/files");
+        if self.proxy_url.len()>4{
+            url = format!("{}/https://api-drive.mypikpak.com/drive/v1/files",&self.proxy_url);
+        }
+
+        println!("upload file url {}",url);
+
+
+        let req = UploadRequest{
+            kind:"drive#file".to_string(),
+		    name:file.name.clone(),
+		    size:file.size.parse::<u64>().unwrap(),
+		    hash: "1CF254FBC456E1B012CD45C546636AA62CF8350E".to_string(),
+		    upload_type: "UPLOAD_TYPE_RESUMABLE".to_string(),
+		    objProvider: ObjProvider { provider: "UPLOAD_TYPE_UNKNOWN".to_string(), },
+		    parent_id:file.parent_id.clone(),
+        };
+
+        self.post_request(url, &req)
+        .await?
+        .context("expect response")?;
+        Ok(())
+    }
+
+
+
+
     fn normalize_dav_path(&self, dav_path: &DavPath) -> PathBuf {
         let path = dav_path.as_pathbuf();
         if self.root.parent().is_none() || path.starts_with(&self.root) {
@@ -662,7 +691,6 @@ impl DavFileSystem for WebdavDriveFileSystem {
         options: OpenOptions,
     ) -> FsFuture<Box<dyn DavFile>> {
         info!("fs:open  open file");
-
         let path = self.normalize_dav_path(dav_path);
         let mode = if options.write { "write" } else { "read" };
         info!(path = %path.display(), mode = %mode, "fs: open");
@@ -688,7 +716,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                         file.size = size.to_string();
                     }
                 }
-                AliyunDavFile::new(self.clone(), file, parent_file.id)
+                AliyunDavFile::new(self.clone(), file, parent_file.id,parent_path.to_path_buf())
             } else if options.write && (options.create || options.create_new) {
                 let size = options.size;
                 let name = dav_path
@@ -715,7 +743,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     hash:Some("".to_string()),
                 };
 
-                AliyunDavFile::new(self.clone(), file, parent_file.id)
+                AliyunDavFile::new(self.clone(), file, parent_file.id,parent_path.to_path_buf())
             } else {
                 println!("FsError::NotFound");
                 return Err(FsError::NotFound);
@@ -898,7 +926,6 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 .ok_or(FsError::NotFound)?;
             let new_name = to_dav.file_name();
             self.copy_file(&file.id, &to_parent_file.id).await;
-
             self.dir_cache.invalidate(&to).await;
             self.dir_cache.invalidate_parent(&to).await;
             Ok(())
@@ -941,9 +968,6 @@ struct UploadState {
     buffer: BytesMut,
     chunk_count: u64,
     chunk: u64,
-    upload_id: String,
-    upload_urls: Vec<String>,
-    sha1: Option<String>,
 }
 
 impl Default for UploadState {
@@ -953,9 +977,6 @@ impl Default for UploadState {
             buffer: BytesMut::new(),
             chunk_count: 0,
             chunk: 1,
-            upload_id: String::new(),
-            upload_urls: Vec::new(),
-            sha1: None,
         }
     }
 }
@@ -965,6 +986,7 @@ struct AliyunDavFile {
     fs: WebdavDriveFileSystem,
     file: WebdavFile,
     parent_file_id: String,
+    parent_dir: PathBuf,
     current_pos: u64,
     download_url: Option<String>,
     upload_state: UploadState,
@@ -982,11 +1004,12 @@ impl Debug for AliyunDavFile {
 }
 
 impl AliyunDavFile {
-    fn new(fs: WebdavDriveFileSystem, file: WebdavFile, parent_file_id: String) -> Self {
+    fn new(fs: WebdavDriveFileSystem, file: WebdavFile, parent_file_id: String,parent_dir: PathBuf) -> Self {
         Self {
             fs,
             file,
             parent_file_id,
+            parent_dir,
             current_pos: 0,
             download_url: None,
             upload_state: UploadState::default(),
@@ -1005,6 +1028,31 @@ impl AliyunDavFile {
     }
 
     async fn maybe_upload_chunk(&mut self, remaining: bool) -> Result<(), FsError> {
+        println!("maybe_upload_chunk {}",&self.file.name);
+        let chunk_size = if remaining {
+            // last chunk size maybe less than upload_buffer_size
+            self.upload_state.buffer.remaining()
+        } else {
+            self.fs.upload_buffer_size
+        };
+        let current_chunk = self.upload_state.chunk;
+        if chunk_size > 0
+            && self.upload_state.buffer.remaining() >= chunk_size
+            && current_chunk <= self.upload_state.chunk_count
+        {
+            let chunk_data = self.upload_state.buffer.split_to(chunk_size);
+            debug!(
+                file_id = %self.file.id,
+                file_name = %self.file.name,
+                size = self.upload_state.size,
+                "upload part {}/{}",
+                current_chunk,
+                self.upload_state.chunk_count
+            );
+            let upload_data = chunk_data.freeze();
+            self.fs.upload(&self.file,upload_data.clone()).await;
+            self.upload_state.chunk += 1;
+        }
         Ok(())
     }
 }
@@ -1021,7 +1069,12 @@ impl DavFile for AliyunDavFile {
 
     fn write_buf(&'_ mut self, buf: Box<dyn Buf + Send>) -> FsFuture<'_, ()> {
         debug!(file_id = %self.file.id, file_name = %self.file.name, "file: write_buf");
+        println!("write_buf {}",&self.file.name);
         async move {
+            if self.prepare_for_upload().await? {
+                self.upload_state.buffer.put(buf);
+                self.maybe_upload_chunk(false).await?;
+            }
             Ok(())
         }
         .boxed()
@@ -1029,7 +1082,12 @@ impl DavFile for AliyunDavFile {
 
     fn write_bytes(&mut self, buf: Bytes) -> FsFuture<()> {
         debug!(file_id = %self.file.id, file_name = %self.file.name, "file: write_bytes");
+        println!("write_bytes {}",&self.file.name);
         async move {
+            if self.prepare_for_upload().await? {
+                self.upload_state.buffer.extend_from_slice(&buf);
+                self.maybe_upload_chunk(false).await?;
+            }
             Ok(())
         }
         .boxed()
@@ -1037,7 +1095,12 @@ impl DavFile for AliyunDavFile {
 
     fn flush(&mut self) -> FsFuture<()> {
         debug!(file_id = %self.file.id, file_name = %self.file.name, "file: flush");
+        println!("flush {}",&self.file.name);
         async move {
+            if self.prepare_for_upload().await? {
+                self.maybe_upload_chunk(true).await?;
+                self.fs.dir_cache.invalidate_parent(&self.parent_dir).await;
+            }
             Ok(())
         }
         .boxed()

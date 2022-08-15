@@ -100,7 +100,7 @@
                                                                     </tr>
                                                                     <tr id="auth_password_tr">
                                                                         <th>密码</th>
-                                                                        <td><input type="text" id="pikpakwebdav_auth_password" value="<% dbus_get_def("pikpakwebdav_auth_password", ""); %>" class="input_ss_table"></td>
+                                                                        <td><input type="password" id="pikpakwebdav_auth_password" value="<% dbus_get_def("pikpakwebdav_auth_password", ""); %>" class="input_ss_table"></td>
                                                                     </tr>
                                                                     <tr id="read_buffer_size_tr">
                                                                         <th>下载缓冲大小(bytes)</th>
@@ -110,6 +110,13 @@
                                                                         <th>目录缓存大小</th>
                                                                         <td><input type="text" id="pikpakwebdav_cache_size" value="<% dbus_get_def("pikpakwebdav_cache_size", "1000"); %>" class="input_ss_table"></td>
                                                                     </tr>
+
+                                                                    <tr id="cache_ttl_tr">
+                                                                        <th>目录缓存过期时间（单位为秒）</th>
+                                                                        <td><input type="text" id="pikpakwebdav_cache_ttl" value="<% dbus_get_def("pikpakwebdav_cache_ttl", "600"); %>" class="input_ss_table"></td>
+                                                                    </tr>
+
+
                                                                 </tbody>
                                                             </table>
                                                             <div class="apply_gen">
@@ -147,7 +154,7 @@
                 buildswitch();
                 update_visibility();
                 var posting = false;
-                var inputs = ['user','password','proxy_url' 'port', 'auth_user', 'auth_password', 'read_buffer_size', 'cache_size', 'root'];
+                var inputs = ['user','password','proxy_url' 'port', 'auth_user', 'auth_password', 'read_buffer_size', 'cache_size','cache_ttl', 'root'];
                 $('.button_gen').click(function () {
                     if(posting) return;
                     posting = true; // save
@@ -203,6 +210,7 @@
                     document.getElementById("auth_password_tr").style.display = "";
                     document.getElementById("read_buffer_size_tr").style.display = "";
                     document.getElementById("cache_size_tr").style.display = "";
+                    document.getElementById("cache_ttl_tr").style.display = "";
 
                 } else {
                     document.getElementById("user_tr").style.display = "none";
@@ -214,6 +222,7 @@
                     document.getElementById("auth_password_tr").style.display = "none";
                     document.getElementById("read_buffer_size_tr").style.display = "none";
                     document.getElementById("cache_size_tr").style.display = "none";
+                    document.getElementById("cache_ttl_tr").style.display = "none";
                 }
             }
         </script>

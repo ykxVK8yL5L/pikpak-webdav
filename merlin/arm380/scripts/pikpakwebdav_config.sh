@@ -29,12 +29,15 @@ pikpakwebdav_start_stop(){
         if [ "${pikpakwebdav_cache_size}"x = ""x ];then
           pikpakwebdav_cache_size="1000"
         fi
+        if [ "${pikpakwebdav_cache_ttl}"x = ""x ];then
+          pikpakwebdav_cache_ttl="600"
+        fi
         if [ "${pikpakwebdav_root}"x = ""x ];then
           pikpakwebdav_root="/"
         fi
 
         start-stop-daemon -S -q -b -m -p ${PID_FILE} \
-          -x /bin/sh -- -c "${BIN} --host 0.0.0.0 --port ${pikpakwebdav_port} --pikpak-user ${pikpakwebdav_user} --pikpak-password ${pikpakwebdav_password} --proxy-url ${pikpakwebdav_proxy_url} --root ${pikpakwebdav_root} --workdir /var/run/pikpakwebdav -S ${pikpakwebdav_read_buffer_size} --cache-size ${pikpakwebdav_cache_size} $AUTH_ARGS >/tmp/pikpakwebdav.log 2>&1"
+          -x /bin/sh -- -c "${BIN} --host 0.0.0.0 --port ${pikpakwebdav_port} --pikpak-user ${pikpakwebdav_user} --pikpak-password ${pikpakwebdav_password} --proxy-url ${pikpakwebdav_proxy_url} --cache-ttl ${pikpakwebdav_cache_ttl} --root ${pikpakwebdav_root} --workdir /var/run/pikpakwebdav -S ${pikpakwebdav_read_buffer_size} --cache-size ${pikpakwebdav_cache_size} $AUTH_ARGS >/tmp/pikpakwebdav.log 2>&1"
     else
         killall pikpak-webdav
     fi

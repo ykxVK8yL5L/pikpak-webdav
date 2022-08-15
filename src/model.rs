@@ -124,9 +124,21 @@ pub struct Quota {
     pub play_times_usage:u64,
 }
 
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct UploadRequest {
+    pub kind: String,
+    pub name: String,
+    pub size: u64,
+    pub hash: String,
+    pub upload_type: String,
+    pub objProvider:ObjProvider,
+    pub parent_id: String,
+}
 
-
-
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct ObjProvider {
+    pub provider: String,
+}
 
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
