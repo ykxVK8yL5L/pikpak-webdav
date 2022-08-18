@@ -1,7 +1,9 @@
 
 # pikpak-webdav
 演示视频:https://youtu.be/Fkms3_qanZQ   
-pikpak的webdav的rust实现  还有很多问题 不支持复制、上传等功能主要是视频播放        
+pikpak的webdav的rust实现  还有很多问题  ~~不支持复制、上传等功能主要是视频播放~~   
+新版本已经支持文件的上传、删除等功能，但是由于新加依赖，不确定是否可以支持更多的设备。    
+代码质量极其低下，请尽量不要使用       
 https://hub.docker.com/r/ykxvk8yl5l/pikpak-webdav
 ###  群晖Docker可能会运行失败 请直接在命令行执行docker run命令 或去除Docker管理界面的path变量演示视频:https://youtu.be/M2OFB1gYU4w
 ## 有网友反馈非邮箱登陆会登陆失败，请使用邮箱、密码方式登陆  google账号登陆的记得到pikpak后台设置密码

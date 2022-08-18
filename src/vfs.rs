@@ -770,10 +770,6 @@ impl WebdavDriveFileSystem {
 
     pub async fn complete_upload(&self,file:&WebdavFile, upload_tags:String, oss_args:&OssArgs, upload_id:&str)-> Result<()> {
         info!(file = %file.name, "complete_upload");
-
-        info!(upload_tags = upload_tags, "complete_upload");
-
-
         let url = format!("https://{}/{}?uploadId={}",oss_args.endpoint,oss_args.key,upload_id);
         let now = SystemTime::now();
         let gmt = httpdate::fmt_http_date(now);
@@ -1380,10 +1376,10 @@ impl AliyunDavFile {
                 let mut ser = XmlSerializer::with_root(Writer::new_with_indent(&mut buffer, b' ', 4), Some("CompleteMultipartUpload"));
                 self.upload_state.upload_tags.serialize(&mut ser).unwrap();
                 let upload_tags = String::from_utf8(buffer).unwrap();
-
                 self.fs.complete_upload(&self.file,upload_tags,oss_args,&self.upload_state.upload_id).await;
-                self.upload_state.buffer.clear();
-                self.upload_state.chunk = 0;
+                self.upload_state = UploadState::default();
+                // self.upload_state.buffer.clear();
+                // self.upload_state.chunk = 0;
                 self.fs.dir_cache.invalidate(&self.parent_dir).await;
                 info!("parent dir is  {} parent_file_id is {}", self.parent_dir.to_string_lossy().to_string(), &self.parent_file_id.to_string());
                 self.fs.list_files_and_cache(self.parent_dir.to_string_lossy().to_string(), self.parent_file_id.to_string());
