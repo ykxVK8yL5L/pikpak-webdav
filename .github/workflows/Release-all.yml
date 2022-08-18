@@ -190,6 +190,195 @@ jobs:
           file_glob: true
           overwrite: true
           tag: "refs/tags/${{ github.event.inputs.tag }}"
+  linux-others:
+      runs-on: ubuntu-latest
+      strategy:
+        matrix:
+          platform:
+            - target: "armv5te-unknown-linux-musleabi"
+              image_tag: "armv5te-musleabi"
+              cargo_extra_args: --no-default-features --features rustls-tls
+            - target: "mips-unknown-linux-musl"
+              image_tag: "mips-musl"
+              cargo_extra_args: --no-default-features --features native-tls-vendored
+            - target: "mipsel-unknown-linux-musl"
+              image_tag: "mipsel-musl"
+              cargo_extra_args: --no-default-features --features native-tls-vendored
+      container:
+        image: docker://messense/rust-musl-cross:${{ matrix.platform.image_tag }}
+      steps:
+        - uses: actions/checkout@v2
+        - name: Build
+          env:
+            RUSTFLAGS: -C target-feature=+crt-static -C link-arg=-s
+          run: |
+            cargo build --release --target ${{ matrix.platform.target }} ${{ matrix.platform.cargo_extra_args }}
+        - name: Upx compress binary
+          uses: crazy-max/ghaction-upx@v1
+          with:
+            version: v3.95  # v3.96 breaks mipsel, https://github.com/upx/upx/issues/504
+            files: target/${{ matrix.platform.target }}/release/pikpak-webdav
+        - name: Upload binary artifacts
+          uses: actions/upload-artifact@v2
+          with:
+            name: ${{ matrix.platform.target }}-bin
+            path: target/${{ matrix.platform.target }}/release/pikpak-webdav
+            if-no-files-found: error
+        - name: Archive binary
+          run: |
+            cd target/${{ matrix.platform.target }}/release
+            tar czvf pikpak-webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz pikpak-webdav
+            shasum -a 256 pikpak-webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz > pikpak-webdav-${{ github.event.inputs.tag }}.${{ matrix.platform.target }}.tar.gz.sha256
+            cd -
+        - name: Upload binary to GitHub Release
+          uses: svenstaro/upload-release-action@v2
+          with:
+            repo_token: ${{ secrets.GITHUB_TOKEN }}
+            file: target/${{ matrix.platform.target }}/release/pikpak-webdav*.tar.gz*
+            file_glob: true
+            overwrite: true
+            tag: "refs/tags/${{ github.event.inputs.tag }}"
+  openwrt:
+      name: OpenWrt Package - ${{ matrix.target.arch }}
+      runs-on: ubuntu-latest
+      environment: OpenWrt
+      strategy:
+        matrix:
+          target:
+            - arch: "aarch64_generic"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/rockchip/armv8/openwrt-sdk-rockchip-armv8_gcc-11.3.0_musl.Linux-x86_64.tar.xz"
+            - arch: "arm_cortex-a9"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/bcm53xx/generic/openwrt-sdk-bcm53xx-generic_gcc-11.3.0_musl_eabi.Linux-x86_64.tar.xz"
+            - arch: "aarch64_cortex-a53"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/bcm27xx/bcm2710/openwrt-sdk-bcm27xx-bcm2710_gcc-11.3.0_musl.Linux-x86_64.tar.xz"
+            - arch: "aarch64_cortex-a72"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/bcm27xx/bcm2711/openwrt-sdk-bcm27xx-bcm2711_gcc-11.3.0_musl.Linux-x86_64.tar.xz"
+            - arch: "x86_64"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/x86/64/openwrt-sdk-x86-64_gcc-11.3.0_musl.Linux-x86_64.tar.xz"
+            - arch: "i386_pentium4"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/x86/generic/openwrt-sdk-x86-generic_gcc-11.3.0_musl.Linux-x86_64.tar.xz"
+            - arch: "arm_mpcore"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/oxnas/ox820/openwrt-sdk-oxnas-ox820_gcc-11.3.0_musl_eabi.Linux-x86_64.tar.xz"
+            - arch: "arm_cortex-a5_vfpv4"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/at91/sama5/openwrt-sdk-at91-sama5_gcc-11.3.0_musl_eabi.Linux-x86_64.tar.xz"
+            - arch: "arm_cortex-a7_neon-vfpv4"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/ipq40xx/generic/openwrt-sdk-ipq40xx-generic_gcc-11.3.0_musl_eabi.Linux-x86_64.tar.xz"
+            - arch: "mipsel_24kc"
+              sdk: "https://downloads.openwrt.org/snapshots/targets/ramips/mt7621/openwrt-sdk-ramips-mt7621_gcc-11.3.0_musl.Linux-x86_64.tar.xz"
+            - arch: "mips_24kc"
+              sdk: "https://archive.openwrt.org/releases/19.07.7/targets/ar71xx/nand/openwrt-sdk-19.07.7-ar71xx-nand_gcc-7.5.0_musl.Linux-x86_64.tar.xz"
+      steps:
+        - uses: actions/checkout@v2
+        - name: Install build requirements
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
+            gettext git java-propose-classpath libelf-dev libncurses5-dev \
+            libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
+            python3-distutils python3-setuptools python3-dev rsync subversion \
+            swig time xsltproc zlib1g-dev
+        - name: Install OpenWrt SDK
+          run: |
+            wget -O openwrt-sdk.tar.xz ${{ matrix.target.sdk }}
+            xz -q -d openwrt-sdk.tar.xz && tar -xvf openwrt-sdk.tar
+            mv -f openwrt-sdk-* openwrt-sdk
+        - name: Build Package
+          run: |
+            echo "src-link pikpak $GITHUB_WORKSPACE/openwrt" > openwrt-sdk/feeds.conf
+            echo 'CONFIG_PACKAGE_pikpak-webdav=y
+            CONFIG_PACKAGE_luci-app-pikpak-webdav=y
+            ' >> openwrt-sdk/.config
+            cd openwrt-sdk
+            cat feeds.conf.default >> feeds.conf
+            cat feeds.conf
+            ./scripts/feeds update -a > /dev/null
+            make defconfig
+            ./scripts/feeds install -d y -f -a
+
+            make package/pikpak-webdav/compile V=s
+            make package/luci-app-pikpak-webdav/compile V=s
+            tree bin/packages/
+        - name: Archive package
+          uses: actions/upload-artifact@v2
+          with:
+            name: pikpak-webdav-openwrt-${{ matrix.target.arch }}
+            path: openwrt-sdk/bin/packages/*/pikpak/pikpak-webdav*.ipk
+            if-no-files-found: error
+        - name: Archive luci packages
+          uses: actions/upload-artifact@v2
+          if: ${{ matrix.target.arch == 'aarch64_generic' }}
+          with:
+            name: pikpak-webdav-openwrt-${{ matrix.target.arch }}
+            path: openwrt-sdk/bin/packages/*/pikpak/luci-*.ipk
+            if-no-files-found: error
+        - name: Upload package to GitHub Release
+          uses: svenstaro/upload-release-action@v2
+          with:
+            repo_token: ${{ secrets.GITHUB_TOKEN }}
+            file_glob: true
+            overwrite: true
+            file: openwrt-sdk/bin/packages/*/pikpak/pikpak-webdav*.ipk
+            tag: "refs/tags/${{ github.event.inputs.tag }}"
+        - name: Upload luci packages to GitHub Release
+          uses: svenstaro/upload-release-action@v2
+          if: ${{ matrix.target.arch == 'aarch64_generic' }}
+          with:
+            repo_token: ${{ secrets.GITHUB_TOKEN }}
+            file_glob: true
+            overwrite: true
+            file: openwrt-sdk/bin/packages/*/pikpak/luci-*.ipk
+            tag: "refs/tags/${{ github.event.inputs.tag }}"
+  merlin:
+    name: Merlin Package
+    runs-on: ubuntu-latest
+    needs: [ linux, linux-others ]
+    environment: Merlin
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - type: arm380
+            name: arm380-armv7
+            target: armv7-unknown-linux-musleabi
+          - type: arm380
+            name: arm380-armhf
+            target: armv7-unknown-linux-musleabihf
+          - type: arm384
+            name: arm384-armv5te
+            target: armv5te-unknown-linux-musleabi
+          - type: arm384
+            name: arm384-armv7
+            target: armv7-unknown-linux-musleabi
+          - type: arm384
+            name: arm384-armhf
+            target: armv7-unknown-linux-musleabihf
+          - type: arm384
+            name: arm384-aarch64
+            target: aarch64-unknown-linux-musl
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.platform.target }}-bin
+      - name: Build package
+        run: |
+          mv pikpak-webdav merlin/${{ matrix.platform.type }}/bin/
+          cd merlin && python3 build.py ${{ matrix.platform.type }} && mv pikpakwebdav.tar.gz pikpakwebdav-merlin-${{ matrix.platform.name }}.tar.gz
+      - name: Archive package
+        uses: actions/upload-artifact@v2
+        with:
+          name: pikpak-webdav-merlin-${{ matrix.platform.name }}
+          path: merlin/pikpakwebdav-merlin-${{ matrix.platform.name }}.tar.gz
+          if-no-files-found: error
+
+      - name: Upload binary to GitHub Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: merlin/pikpakwebdav-merlin-${{ matrix.platform.name }}.tar.gz
+          file_glob: true
+          overwrite: true
+          tag: "refs/tags/${{ github.event.inputs.tag }}"
   docker:
     name: Build Docker Image
     runs-on: ubuntu-latest
