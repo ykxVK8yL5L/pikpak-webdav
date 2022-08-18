@@ -4,19 +4,27 @@ use std::io::SeekFrom;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration,SystemTime, UNIX_EPOCH};
-use anyhow::{bail, Context, Result};
+use url::form_urlencoded;
+use httpdate;
+use hmacsha::HmacSha;
+use sha1::{Sha1, Digest};
+use hex_literal::hex;
+use base64::encode;
+use std::str::from_utf8;
+use anyhow::{Result, Context};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use dashmap::DashMap;
-use futures_util::future::FutureExt;
+use futures_util::future::{ready, ok, FutureExt};
 use tracing::{debug, error, trace,info};
-use webdav_handler::{
+use dav_server::{
     davpath::DavPath,
     fs::{
         DavDirEntry, DavFile, DavFileSystem, DavMetaData, FsError, FsFuture, FsStream, OpenOptions,
-        ReadDirMeta,
+        ReadDirMeta,DavProp
     },
 };
 use moka::future::{Cache as AuthCache};
+use tracing_subscriber::fmt::format;
 use crate::cache::Cache;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -27,7 +35,10 @@ use tokio::{
     time,
 };
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Serialize,Deserialize};
+use quick_xml::de::from_str;
+use quick_xml::Writer;
+use quick_xml::se::Serializer as XmlSerializer;
 use serde_json::json;
 use reqwest::header::RANGE;
 
@@ -131,7 +142,6 @@ impl WebdavDriveFileSystem {
         match res.error_for_status_ref() {
             Ok(_) => {
                 let res = res.json::<RefreshTokenResponse>().await?;
-                //info!(refresh_token = %res.access_token, "refresh token succeed");
                 let access_token = "access_token".to_string();
                 self.auth_cache.insert(access_token, res.access_token).await;
             }
@@ -275,7 +285,6 @@ impl WebdavDriveFileSystem {
         }
     }
 
-
     async fn patch_request<T, U>(&self, url: String, req: &T) -> Result<Option<U>>
     where
         T: Serialize + ?Sized,
@@ -350,9 +359,14 @@ impl WebdavDriveFileSystem {
         let url = rurl;
         let req = CreateFolderRequest{kind:"drive#folder",name:folder_name,parent_id:parent_id};
 
-        let res: WebdavFile = self.post_request(url, &req)
-        .await?
-        .context("expect response")?;
+  
+        let res:WebdavFile = match  self.post_request(url, &req).await{
+            Ok(res)=>res.unwrap(),
+            Err(err)=>{
+                return Err(err);
+            }
+        };
+
         Ok(res)
     }
 
@@ -365,14 +379,11 @@ impl WebdavDriveFileSystem {
         }
         let url = rurl;
         let req = DelFileRequest{ids:vec![file_id.to_string()]};
-        self.post_request(url, &req)
-        .await?
-        .context("expect response")?;
+        self.post_request(url, &req).await?.context("remove file fail")?;
         Ok(())
     }
 
     pub async fn rename_file(&self, file_id: &str, new_name: &str) -> Result<()> {
-        //println!("rename file {} to {}", file_id, new_name);
         let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files/{}",file_id);
         if self.proxy_url.len()>4{
             rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files/{}",&self.proxy_url,file_id);
@@ -422,33 +433,24 @@ impl WebdavDriveFileSystem {
             rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/about",&self.proxy_url);
         }
         let url = rurl;
-        let res: QuotaResponse = self.request(url)
-        .await?
-        .context("expect response")?;
-
+       
+        let res:QuotaResponse = match  self.request(url).await{
+            Ok(res)=>res.unwrap(),
+            Err(err)=>{
+                error!("get_useage_quota fail:{:?}",err);
+                return Err(err);
+            }
+        }; 
         Ok((res.quota.usage, res.quota.limit))
     }
 
     async fn list_files_and_cache( &self, path_str: String, parent_file_id: String)-> Result<Vec<WebdavFile>>{
-        //println!("list_files_and_cache {}",path_str);
         let mut pagetoken = "".to_string();
         let mut files = Vec::new();
         let access_token_key = "access_token".to_string();
         let access_token = self.auth_cache.get(&access_token_key).unwrap();
 
         loop{
-            // let url = format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0",&parent_file_id,pagetoken);
-            // let res = self.client
-            //     .get(url)
-            //     .bearer_auth(&access_token)
-            //     .send()
-            //     .await?
-            //     .error_for_status()?;
-            // let data = res.text().await?;
-            // let v:FilesList = serde_json::from_str(&data).unwrap();
-            //let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken))
-            //let v: FilesList = self.request(format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0",&parent_file_id,pagetoken))
-            
             let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken);
             if self.proxy_url.len()>4{
                 rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&self.proxy_url,&parent_file_id,pagetoken);
@@ -502,10 +504,9 @@ impl WebdavDriveFileSystem {
         }
     }
   
-
     async fn read_dir_and_cache(&self, path: PathBuf) -> Result<Vec<WebdavFile>, FsError> {
         let path_str = path.to_string_lossy().into_owned();
-        info!(path = %path_str, "read_dir and cache");
+        debug!(path = %path_str, "read_dir and cache");
         let parent_file_id = if path_str == "/" {
             "".to_string()
         } else {
@@ -525,11 +526,35 @@ impl WebdavDriveFileSystem {
         } else {
             self.list_files_and_cache(path_str, parent_file_id.clone()).await.map_err(|_| FsError::NotFound)?
         };
+
+        let uploading_files = self.list_uploading_files(&parent_file_id);
+        if !uploading_files.is_empty() {
+            debug!("added {} uploading files", uploading_files.len());
+            files.extend(uploading_files);
+        }
+
         Ok(files)
     }
 
+
+    fn list_uploading_files(&self, parent_file_id: &str) -> Vec<WebdavFile> {
+        self.uploading
+            .get(parent_file_id)
+            .map(|val_ref| val_ref.value().clone())
+            .unwrap_or_default()
+    }
+
+
+    fn remove_uploading_file(&self, parent_file_id: &str, name: &str) {
+        if let Some(mut files) = self.uploading.get_mut(parent_file_id) {
+            if let Some(index) = files.iter().position(|x| x.name == name) {
+                files.swap_remove(index);
+            }
+        }
+    }
+
     pub async fn get_by_path(&self, path: &str) -> Result<Option<WebdavFile>> {
-        info!(path = %path, "get file by path");
+        debug!(path = %path, "get file by path");
         if path == "/" || path.is_empty() {
             return Ok(Some(WebdavFile::new_root()));
         }
@@ -560,7 +585,7 @@ impl WebdavDriveFileSystem {
     async fn get_file(&self, path: PathBuf) -> Result<Option<WebdavFile>, FsError> {
 
         let path_str = path.to_string_lossy().into_owned();
-        info!(path = %path_str, "get_file");
+        debug!(path = %path_str, "get_file");
 
         // let pos = path_str.rfind('/').unwrap();
         // let path_length = path_str.len()-pos;
@@ -581,9 +606,9 @@ impl WebdavDriveFileSystem {
             Ok(Some(file))
         } else {
 
-            info!(path = %path.display(), "file not found in cache");
+            debug!(path = %path.display(), "file not found in cache");
 
-            trace!(path = %path.display(), "file not found in cache");
+            // trace!(path = %path.display(), "file not found in cache");
             // if let Ok(Some(file)) = self.get_by_path(&path_str).await {
             //     return Ok(Some(file));
             // }
@@ -606,8 +631,7 @@ impl WebdavDriveFileSystem {
     }
 
     async fn get_download_url(&self,file_id: &str) -> Result<String> {
-        info!("get_download_url");
-
+        debug!("get_download_url");
         let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files/{}",file_id.to_string());
         if self.proxy_url.len()>4{
             rurl = format!("{}/https://api-drive.mypikpak.com/drive/v1/files/{}",&self.proxy_url,file_id.to_string());
@@ -617,7 +641,6 @@ impl WebdavDriveFileSystem {
         let res: WebdavFile = self.request(url)
             .await?
             .context("expect response")?;
-        
         if(res.mime_type.contains("video/")){
             Ok(res.medias[0].link.url.clone())
         }else{
@@ -629,7 +652,7 @@ impl WebdavDriveFileSystem {
 
     pub async fn download(&self, url: &str, start_pos: u64, size: usize) -> Result<Bytes> {
         let end_pos = start_pos + size as u64 - 1;
-        info!(url = %url, start = start_pos, end = end_pos, "download file");
+        debug!(url = %url, start = start_pos, end = end_pos, "download file");
         let range = format!("bytes={}-{}", start_pos, end_pos);
         let res = self.client
             .get(url)
@@ -643,33 +666,170 @@ impl WebdavDriveFileSystem {
     }
 
 
-    pub async fn upload(&self, file:&WebdavFile, data: Bytes) ->  Result<()> {
+    pub async fn create_file_with_proof(&self,name: &str, parent_file_id: &str, hash:&str, size: u64,chunk_count: u64) ->  Result<UploadResponse> {
         let mut url = format!("https://api-drive.mypikpak.com/drive/v1/files");
         if self.proxy_url.len()>4{
             url = format!("{}/https://api-drive.mypikpak.com/drive/v1/files",&self.proxy_url);
         }
-
-        println!("upload file url {}",url);
-
-
         let req = UploadRequest{
             kind:"drive#file".to_string(),
-		    name:file.name.clone(),
-		    size:file.size.parse::<u64>().unwrap(),
-		    hash: "1CF254FBC456E1B012CD45C546636AA62CF8350E".to_string(),
+		    name:name.to_string(),
+		    size:size,
+		    hash: hash.to_string(),
 		    upload_type: "UPLOAD_TYPE_RESUMABLE".to_string(),
-		    objProvider: ObjProvider { provider: "UPLOAD_TYPE_UNKNOWN".to_string(), },
-		    parent_id:file.parent_id.clone(),
+            objProvider: ObjProvider { provider: "UPLOAD_TYPE_UNKNOWN".to_string() },
+		    parent_id:parent_file_id.to_string(),
+        };
+        let payload = serde_json::to_string(&req).unwrap();
+        let access_token_key = "access_token".to_string();
+        let access_token = self.auth_cache.get(&access_token_key).unwrap();
+
+        let res = self.client.post(url)
+            .header(reqwest::header::CONTENT_LENGTH, payload.len())
+            .header(reqwest::header::HOST, "api-drive.mypikpak.com")
+            .header(reqwest::header::AUTHORIZATION, format!("Bearer {}",access_token))
+            .body(payload)
+            .send()
+            .await?;
+
+        let body = &res.text().await?;
+        let result = match serde_json::from_str::<UploadResponse>(body) {
+            Ok(result) => result,
+            Err(e) => {
+                error!(error = %e, "create_file_with_proof");
+                return Err(e.into());
+            }
+        };
+    
+        Ok(result)
+    }
+
+
+    pub async fn get_pre_upload_info(&self,oss_args:&OssArgs) -> Result<String> {
+        let mut url = format!("https://{}/{}?uploads",oss_args.endpoint,oss_args.key);
+        if self.proxy_url.len()>4{
+            url = format!("{}/https://{}/{}?uploads",&self.proxy_url,oss_args.endpoint,oss_args.key);
+        }
+        let now = SystemTime::now();
+        let gmt = httpdate::fmt_http_date(now);
+        let mut req = self.client.post(url)
+            .header(reqwest::header::USER_AGENT, "aliyun-sdk-android/2.9.5(Linux/Android 11/ONEPLUS%20A6000;RKQ1.201217.002)")
+            .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
+            .header("X-Oss-Security-Token", &oss_args.security_token)
+            .header("Date", &gmt).build()?;
+        let oss_sign:String = self.hmac_authorization(&req,&gmt,oss_args);
+        let oss_header = format!("OSS {}:{}",&oss_args.access_key_id,&oss_sign);
+        let header_auth = HeaderValue::from_str(&oss_header).unwrap();
+        req.headers_mut().insert(reqwest::header::AUTHORIZATION, header_auth);
+        let res = self.client.execute(req).await?;
+        let body = &res.text().await?;
+
+        let result: InitiateMultipartUploadResult = from_str(body).unwrap();
+        Ok(result.UploadId.clone())
+    }
+
+    pub async fn upload_chunk(&self, file:&WebdavFile, oss_args:&OssArgs, upload_id:&str, current_chunk:u64,body: Bytes) -> Result<(PartInfo)> {
+        debug!(file_name=%file.name,upload_id = upload_id,current_chunk=current_chunk, "upload_chunk");
+        let encoded: String = form_urlencoded::Serializer::new(String::new())
+        .append_pair("partNumber", current_chunk.to_string().as_str())
+        .append_pair("uploadId", upload_id)
+        .finish();
+
+        let mut url = format!("https://{}/{}?{}",oss_args.endpoint,oss_args.key,encoded);
+        if self.proxy_url.len()>4{
+            url = format!("{}/https://{}/{}?{}",&self.proxy_url,oss_args.endpoint,oss_args.key,encoded);
+        }
+  
+        let now = SystemTime::now();
+        let gmt = httpdate::fmt_http_date(now);
+        let mut req = self.client.put(url)
+            .body(body)
+            .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
+            .header("X-Oss-Security-Token", &oss_args.security_token)
+            .header("Date", &gmt).build()?;
+        let oss_sign:String = self.hmac_authorization(&req,&gmt,oss_args);
+        let oss_header = format!("OSS {}:{}",&oss_args.access_key_id,&oss_sign);
+        let header_auth = HeaderValue::from_str(&oss_header).unwrap();
+        req.headers_mut().insert(reqwest::header::AUTHORIZATION, header_auth);
+        let res = self.client.execute(req).await?;
+        //let body = &res.text().await?;
+
+        let etag  = match &res.headers().get("ETag") {
+            Some(etag) => etag.to_str().unwrap().to_string(),
+            None => "".to_string(),
         };
 
-        self.post_request(url, &req)
-        .await?
-        .context("expect response")?;
+        let part = PartInfo {
+            PartNumber: PartNumber { PartNumber: current_chunk },
+            ETag: etag,
+        };
+        
+        Ok(part)
+    }
+
+
+    pub async fn complete_upload(&self,file:&WebdavFile, upload_tags:String, oss_args:&OssArgs, upload_id:&str)-> Result<()> {
+        info!(file = %file.name, "complete_upload");
+
+        info!(upload_tags = upload_tags, "complete_upload");
+
+
+        let url = format!("https://{}/{}?uploadId={}",oss_args.endpoint,oss_args.key,upload_id);
+        let now = SystemTime::now();
+        let gmt = httpdate::fmt_http_date(now);
+        let mut req = self.client.post(url)
+            .body(upload_tags)
+            .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
+            .header("X-Oss-Security-Token", &oss_args.security_token)
+            .header("Date", &gmt).build()?;
+        let oss_sign:String = self.hmac_authorization(&req,&gmt,oss_args);
+        let oss_header = format!("OSS {}:{}",&oss_args.access_key_id,&oss_sign);
+        let header_auth = HeaderValue::from_str(&oss_header).unwrap();
+        req.headers_mut().insert(reqwest::header::AUTHORIZATION, header_auth);
+        let res = self.client.execute(req).await?;
+
         Ok(())
     }
 
 
 
+
+    pub fn hmac_authorization(&self, req:&reqwest::Request,time:&str,oss_args:&OssArgs)->String{
+        // let headers = req.headers().clone();
+        // let method_str = format!("{}",req.method().as_str());
+        // let content_type_str = format!("{}",headers.get(reqwest::header::CONTENT_TYPE).unwrap().to_str().unwrap());
+        // let mut string_builder = String::new();
+        // string_builder.push_str(&method_str);
+        // string_builder.push_str("\n");
+        // string_builder.push_str(&content_type_str);
+        // string_builder.push_str("\n");
+        // string_builder.push_str(&time);
+        // string_builder.push_str("\n");
+        // let mut sorted_headers = headers.iter().collect::<Vec<_>>();
+        // for header in req.headers().iter() {
+        //     let header_name = header.0.as_str();
+        //     if  header_name.contains("x-oss-"){
+        //         sorted_headers.push(header);
+        //     }
+        // }
+        // for sh in sorted_headers.iter() {
+        //     let header_str = format!("{}:{}",sh.0.as_str(),sh.1.to_str().unwrap());
+        //     string_builder.push_str(&header_str);
+        //     string_builder.push_str("\n");
+        // }
+        // let oss_query_string = format!("/{}{}?{}",oss_args.bucket,req.url().path(),req.url().query().unwrap());
+        // string_builder.push_str(&oss_query_string);
+        //let message = string_builder;
+
+        let message = format!("{}\n\n{}\n{}\nx-oss-security-token:{}\n/{}{}?{}",req.method().as_str(),req.headers().get(reqwest::header::CONTENT_TYPE).unwrap().to_str().unwrap(),time,oss_args.security_token,oss_args.bucket,req.url().path(),req.url().query().unwrap());
+        let key = &oss_args.access_key_secret;
+      
+        let mut hasher = HmacSha::from(key, &message, Sha1::default());
+        let result = hasher.compute_digest();
+        let signature_base64 = base64::encode(&result);
+        signature_base64
+    }
+   
 
     fn normalize_dav_path(&self, dav_path: &DavPath) -> PathBuf {
         let path = dav_path.as_pathbuf();
@@ -690,11 +850,9 @@ impl DavFileSystem for WebdavDriveFileSystem {
         dav_path: &'a DavPath,
         options: OpenOptions,
     ) -> FsFuture<Box<dyn DavFile>> {
-        info!("fs:open  open file");
         let path = self.normalize_dav_path(dav_path);
         let mode = if options.write { "write" } else { "read" };
-        info!(path = %path.display(), mode = %mode, "fs: open");
-        
+        debug!(path = %path.display(), mode = %mode, "fs: open");
         async move {
             if options.append {
                 // Can't support open in write-append mode
@@ -706,44 +864,65 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 .get_file(parent_path.to_path_buf())
                 .await?
                 .ok_or(FsError::NotFound)?;
+            let sha1 = options.checksum.and_then(|c| {
+                if let Some((algo, hash)) = c.split_once(':') {
+                    if algo.eq_ignore_ascii_case("sha1") {
+                        Some(hash.to_string())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            });
+
+
             let dav_file = if let Some(mut file) = self.get_file(path.clone()).await? {
                 if options.write && options.create_new {
                     return Err(FsError::Exists);
                 }
-                if let Some(size) = options.size {
-                    // 上传中的文件刚开始 size 可能为 0，更新为正确的 size
-                    if file.size.parse::<u64>().unwrap()== 0 {
-                        file.size = size.to_string();
-                    }
-                }
-                AliyunDavFile::new(self.clone(), file, parent_file.id,parent_path.to_path_buf())
+                AliyunDavFile::new(self.clone(), file, parent_file.id,parent_path.to_path_buf(),options.size.unwrap_or_default(),sha1)
             } else if options.write && (options.create || options.create_new) {
+
+
                 let size = options.size;
                 let name = dav_path
                     .file_name()
                     .ok_or(FsError::GeneralFailure)?
                     .to_string();
+
                 // 忽略 macOS 上的一些特殊文件
                 if name == ".DS_Store" || name.starts_with("._") {
                     return Err(FsError::NotFound);
                 }
                 let now = SystemTime::now();
+
+                let file_path = dav_path.as_url_string();
+                let mut hasher = Sha1::default();
+                hasher.update(file_path.as_bytes());
+                let hash_code = hasher.finalize();
+                let file_hash = format!("{:X}",&hash_code);
+
+
                 let file = WebdavFile {
                     name,
-                    kind: "drive#folder".to_string(),
+                    kind: "drive#file".to_string(),
                     id: "".to_string(),
                     parent_id: "".to_string(),
-                    size: "0".to_string(),
+                    phase:"".to_string(),
+                    size: size.unwrap_or(0).to_string(),
                     created_time: DateTime::new(now),
                     modified_time: DateTime::new(now),
                     file_extension: "".to_string(),
                     mime_type: "".to_string(),
                     web_content_link: "".to_string(),
                     medias:Vec::new(),
-                    hash:Some("".to_string()),
+                    hash:Some(file_hash),
                 };
+                let mut uploading = self.uploading.entry(parent_file.id.clone()).or_default();
+                uploading.push(file.clone());
 
-                AliyunDavFile::new(self.clone(), file, parent_file.id,parent_path.to_path_buf())
+                AliyunDavFile::new(self.clone(), file, parent_file.id,parent_path.to_path_buf(),size.unwrap_or(0),sha1)
             } else {
                 println!("FsError::NotFound");
                 return Err(FsError::NotFound);
@@ -759,7 +938,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
         _meta: ReadDirMeta,
     ) -> FsFuture<FsStream<Box<dyn DavDirEntry>>> {
         let path = self.normalize_dav_path(path);
-        info!(path = %path.display(), "fs: read_dir");
+        debug!(path = %path.display(), "fs: read_dir");
         async move {
             let files = self.read_dir_and_cache(path.clone()).await?;
             let mut v: Vec<Box<dyn DavDirEntry>> = Vec::with_capacity(files.len());
@@ -777,7 +956,6 @@ impl DavFileSystem for WebdavDriveFileSystem {
 
     fn create_dir<'a>(&'a self, dav_path: &'a DavPath) -> FsFuture<()> {
         let path = self.normalize_dav_path(dav_path);
-        //println!("create_dir {}",path.display());
         async move {
             let parent_path = path.parent().ok_or(FsError::NotFound)?;
             let parent_file = self
@@ -804,15 +982,12 @@ impl DavFileSystem for WebdavDriveFileSystem {
     fn remove_dir<'a>(&'a self, dav_path: &'a DavPath) -> FsFuture<()> {
         let path = self.normalize_dav_path(dav_path);
         debug!(path = %path.display(), "fs: remove_dir");
-        //println!("remove_dir {}",path.display());
         async move {
 
             let file = self
                 .get_file(path.clone())
                 .await?
                 .ok_or(FsError::NotFound)?;
-
-
 
             if !(file.kind==String::from("drive#folder")) {
                 return Err(FsError::Forbidden);
@@ -835,9 +1010,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
     fn remove_file<'a>(&'a self, dav_path: &'a DavPath) -> FsFuture<()> {
         let path = self.normalize_dav_path(dav_path);
         debug!(path = %path.display(), "fs: remove_file");
-        //println!("remove_file {}",path.display());
         async move {
-
             let file = self
                 .get_file(path.clone())
                 .await?
@@ -860,7 +1033,6 @@ impl DavFileSystem for WebdavDriveFileSystem {
         let from = self.normalize_dav_path(from_dav);
         let to = self.normalize_dav_path(to_dav);
         debug!(from = %from.display(), to = %to.display(), "fs: rename");
-        //println!("rename {} {}",from.display(),to.display());
         async move {
             let is_dir;
             if from.parent() == to.parent() {
@@ -948,10 +1120,47 @@ impl DavFileSystem for WebdavDriveFileSystem {
 
     fn metadata<'a>(&'a self, path: &'a DavPath) -> FsFuture<Box<dyn DavMetaData>> {
         let path = self.normalize_dav_path(path);
-        info!(path = %path.display(), "fs: metadata");
+        debug!(path = %path.display(), "fs: metadata");
         async move {
             let file = self.get_file(path).await?.ok_or(FsError::NotFound)?;
             Ok(Box::new(file) as Box<dyn DavMetaData>)
+        }
+        .boxed()
+    }
+
+
+    fn have_props<'a>(
+        &'a self,
+        _path: &'a DavPath,
+    ) -> std::pin::Pin<Box<dyn futures_util::Future<Output = bool> + Send + 'a>> {
+        Box::pin(ready(true))
+    }
+
+    fn get_prop(&self, dav_path: &DavPath, prop:DavProp) -> FsFuture<Vec<u8>> {
+        let path = self.normalize_dav_path(dav_path);
+        let prop_name = match prop.prefix.as_ref() {
+            Some(prefix) => format!("{}:{}", prefix, prop.name),
+            None => prop.name.to_string(),
+        };
+        debug!(path = %path.display(), prop = %prop_name, "fs: get_prop");
+        async move {
+            if prop.namespace.as_deref() == Some("http://owncloud.org/ns")
+                && prop.name == "checksums"
+            {
+                let file = self.get_file(path).await?.ok_or(FsError::NotFound)?;
+                if let Some(sha1) = file.hash {
+                    let xml = format!(
+                        r#"<?xml version="1.0"?>
+                        <oc:checksums xmlns:d="DAV:" xmlns:nc="http://nextcloud.org/ns" xmlns:oc="http://owncloud.org/ns">
+                            <oc:checksum>sha1:{}</oc:checksum>
+                        </oc:checksums>
+                    "#,
+                        sha1
+                    );
+                    return Ok(xml.into_bytes());
+                }
+            }
+            Err(FsError::NotImplemented)
         }
         .boxed()
     }
@@ -968,15 +1177,24 @@ struct UploadState {
     buffer: BytesMut,
     chunk_count: u64,
     chunk: u64,
+    upload_id: String,
+    oss_args: Option<OssArgs>,
+    sha1: Option<String>,
+    upload_tags:CompleteMultipartUpload,
 }
 
 impl Default for UploadState {
     fn default() -> Self {
+        let mut upload_tags = CompleteMultipartUpload{Part:vec![]};
         Self {
             size: 0,
             buffer: BytesMut::new(),
             chunk_count: 0,
             chunk: 1,
+            upload_id: String::new(),
+            oss_args: None,
+            sha1: None,
+            upload_tags: upload_tags,
         }
     }
 }
@@ -1004,15 +1222,19 @@ impl Debug for AliyunDavFile {
 }
 
 impl AliyunDavFile {
-    fn new(fs: WebdavDriveFileSystem, file: WebdavFile, parent_file_id: String,parent_dir: PathBuf) -> Self {
+    fn new(fs: WebdavDriveFileSystem, file: WebdavFile, parent_file_id: String,parent_dir: PathBuf,size: u64,sha1: Option<String>,) -> Self {
         Self {
             fs,
             file,
             parent_file_id,
             parent_dir,
             current_pos: 0,
+            upload_state: UploadState {
+                size,
+                sha1,
+                ..Default::default()
+            },
             download_url: None,
-            upload_state: UploadState::default(),
         }
     }
 
@@ -1024,11 +1246,86 @@ impl AliyunDavFile {
     }
 
     async fn prepare_for_upload(&mut self) -> Result<bool, FsError> {
+        if self.upload_state.chunk_count == 0 {
+            let size = self.upload_state.size;
+            debug!(file_name = %self.file.name, size = size, "prepare for upload");
+
+            if !self.file.id.is_empty() {
+                if let Some(content_hash) = self.file.hash.as_ref() {
+                    if let Some(sha1) = self.upload_state.sha1.as_ref() {
+                        if content_hash.eq_ignore_ascii_case(sha1) {
+                            debug!(file_name = %self.file.name, sha1 = %sha1, "skip uploading same content hash file");
+                            return Ok(false);
+                        }
+                    }
+                }
+
+                if self.fs.skip_upload_same_size && self.file.size.parse::<u64>().unwrap() == size {
+                    debug!(file_name = %self.file.name, size = size, "skip uploading same size file");
+                    return Ok(false);
+                }
+                // existing file, delete before upload
+                if let Err(err) = self
+                    .fs
+                    .remove_file(&self.file.id)
+                    .await
+                {
+                    error!(file_name = %self.file.name, error = %err, "delete file before upload failed");
+                }
+            }
+            // TODO: create parent folders?
+
+            let upload_buffer_size = self.fs.upload_buffer_size as u64;
+            let chunk_count =
+                size / upload_buffer_size + if size % upload_buffer_size != 0 { 1 } else { 0 };
+            self.upload_state.chunk_count = chunk_count;
+            debug!("uploading {} ({} bytes)...", self.file.name, size);
+            if size>0 {
+                let hash = &self.file.clone().hash.unwrap();
+                let res = self
+                    .fs
+                    .create_file_with_proof(&self.file.name, &self.parent_file_id, hash, size, chunk_count)
+                    .await;
+            
+                let upload_response = match res {
+                    Ok(upload_response_info) => upload_response_info,
+                    Err(err) => {
+                        error!(file_name = %self.file.name, error = %err, "create file with proof failed");
+                        return Ok(false);
+                    }
+                };
+
+                let oss_args = OssArgs {
+                    bucket: upload_response.resumable.params.bucket.to_string(),
+                    key: upload_response.resumable.params.key.to_string(),
+                    endpoint: upload_response.resumable.params.endpoint.to_string(),
+                    access_key_id: upload_response.resumable.params.access_key_id.to_string(),
+                    access_key_secret: upload_response.resumable.params.access_key_secret.to_string(),
+                    security_token: upload_response.resumable.params.security_token.to_string(),
+                };
+                self.upload_state.oss_args = Some(oss_args);
+    
+                let oss_args = self.upload_state.oss_args.as_ref().unwrap();
+                let pre_upload_info = self.fs.get_pre_upload_info(&oss_args).await;
+                if let Err(err) = pre_upload_info {
+                    error!(file_name = %self.file.name, error = %err, "get pre upload info failed");
+                    return Ok(false);
+                }
+               
+                self.upload_state.upload_id = match pre_upload_info {
+                    Ok(upload_id) => upload_id,
+                    Err(err) => {
+                        error!(file_name = %self.file.name, error = %err, "get pre upload info failed");
+                        return Ok(false);
+                    }
+                };
+                debug!(file_name = %self.file.name, upload_id = %self.upload_state.upload_id, "pre upload info get upload_id success");
+            }
+        }
         Ok(true)
     }
 
     async fn maybe_upload_chunk(&mut self, remaining: bool) -> Result<(), FsError> {
-        println!("maybe_upload_chunk {}",&self.file.name);
         let chunk_size = if remaining {
             // last chunk size maybe less than upload_buffer_size
             self.upload_state.buffer.remaining()
@@ -1036,6 +1333,7 @@ impl AliyunDavFile {
             self.fs.upload_buffer_size
         };
         let current_chunk = self.upload_state.chunk;
+
         if chunk_size > 0
             && self.upload_state.buffer.remaining() >= chunk_size
             && current_chunk <= self.upload_state.chunk_count
@@ -1050,16 +1348,62 @@ impl AliyunDavFile {
                 self.upload_state.chunk_count
             );
             let upload_data = chunk_data.freeze();
-            self.fs.upload(&self.file,upload_data.clone()).await;
+            let oss_args = match self.upload_state.oss_args.as_ref() {
+                Some(oss_args) => oss_args,
+                None => {
+                    error!(file_name = %self.file.name, "获取文件上传信息错误");
+                    return Err(FsError::GeneralFailure);
+                }
+            };
+            let res = self.fs.upload_chunk(&self.file,oss_args,&self.upload_state.upload_id,current_chunk,upload_data.clone()).await;
+            
+            let part = match res {
+                Ok(part) => part,
+                Err(err) => {
+                    error!(file_name = %self.file.name, error = %err, "上传分片失败，无法获取ETag");
+                    return Err(FsError::GeneralFailure);
+                }
+            };
+                
+
+
+
+
+            debug!(chunk_count = %self.upload_state.chunk_count, current_chunk=current_chunk, "upload chunk info");
+            self.upload_state.upload_tags.Part.push(part);
+
+             
+            if current_chunk == self.upload_state.chunk_count{
+                debug!(file_name = %self.file.name, "upload finished");
+
+                let mut buffer = Vec::new();
+                let mut ser = XmlSerializer::with_root(Writer::new_with_indent(&mut buffer, b' ', 4), Some("CompleteMultipartUpload"));
+                self.upload_state.upload_tags.serialize(&mut ser).unwrap();
+                let upload_tags = String::from_utf8(buffer).unwrap();
+
+                self.fs.complete_upload(&self.file,upload_tags,oss_args,&self.upload_state.upload_id).await;
+                self.upload_state.buffer.clear();
+                self.upload_state.chunk = 0;
+                self.fs.dir_cache.invalidate(&self.parent_dir).await;
+                info!("parent dir is  {} parent_file_id is {}", self.parent_dir.to_string_lossy().to_string(), &self.parent_file_id.to_string());
+                self.fs.list_files_and_cache(self.parent_dir.to_string_lossy().to_string(), self.parent_file_id.to_string());
+            }
+
+
             self.upload_state.chunk += 1;
         }
+
+
+        
+
         Ok(())
     }
+
 }
 
 impl DavFile for AliyunDavFile {
     fn metadata(&'_ mut self) -> FsFuture<'_, Box<dyn DavMetaData>> {
-        info!(file_id = %self.file.id, file_name = %self.file.name, "file: metadata");
+        debug!(file_id = %self.file.id, file_name = %self.file.name, "file: metadata");
         async move {
             let file = self.file.clone();
             Ok(Box::new(file) as Box<dyn DavMetaData>)
@@ -1069,7 +1413,6 @@ impl DavFile for AliyunDavFile {
 
     fn write_buf(&'_ mut self, buf: Box<dyn Buf + Send>) -> FsFuture<'_, ()> {
         debug!(file_id = %self.file.id, file_name = %self.file.name, "file: write_buf");
-        println!("write_buf {}",&self.file.name);
         async move {
             if self.prepare_for_upload().await? {
                 self.upload_state.buffer.put(buf);
@@ -1082,7 +1425,6 @@ impl DavFile for AliyunDavFile {
 
     fn write_bytes(&mut self, buf: Bytes) -> FsFuture<()> {
         debug!(file_id = %self.file.id, file_name = %self.file.name, "file: write_bytes");
-        println!("write_bytes {}",&self.file.name);
         async move {
             if self.prepare_for_upload().await? {
                 self.upload_state.buffer.extend_from_slice(&buf);
@@ -1095,11 +1437,11 @@ impl DavFile for AliyunDavFile {
 
     fn flush(&mut self) -> FsFuture<()> {
         debug!(file_id = %self.file.id, file_name = %self.file.name, "file: flush");
-        println!("flush {}",&self.file.name);
         async move {
             if self.prepare_for_upload().await? {
                 self.maybe_upload_chunk(true).await?;
-                self.fs.dir_cache.invalidate_parent(&self.parent_dir).await;
+                self.fs.remove_uploading_file(&self.parent_file_id, &self.file.name);
+                self.fs.dir_cache.invalidate(&self.parent_dir).await;
             }
             Ok(())
         }

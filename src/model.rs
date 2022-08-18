@@ -19,7 +19,7 @@ use tokio::{
     time,
 };
 use tracing::{debug, error, info, warn};
-use webdav_handler::fs::{DavDirEntry, DavMetaData, FsFuture, FsResult};
+use dav_server::fs::{DavDirEntry, DavMetaData, FsFuture, FsResult};
 
 
 #[derive(Debug, Clone)]
@@ -135,10 +135,80 @@ pub struct UploadRequest {
     pub parent_id: String,
 }
 
+
 #[derive(Debug, Clone,Serialize, Deserialize)]
 pub struct ObjProvider {
     pub provider: String,
 }
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct OssArgs {
+    pub bucket: String,
+    pub endpoint: String,
+    pub access_key_id: String,
+    pub access_key_secret: String,
+    pub key: String,
+    pub security_token: String,
+}
+
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct CompleteMultipartUpload {
+    pub Part: Vec<PartInfo>,
+}
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct PartInfo {
+    #[serde(flatten)]
+    pub PartNumber: PartNumber,
+    pub ETag: String,
+}
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct PartNumber {
+    pub PartNumber: u64,
+}
+
+
+
+
+
+
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct UploadResponse {
+    pub upload_type: String,
+    pub resumable: Resumable,
+    pub file: WebdavFile,
+}
+
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct Resumable {
+    pub kind: String,
+    pub provider: String,
+    pub params: UploadParams,
+}
+
+#[derive(Debug, Clone,Serialize, Deserialize)]
+pub struct UploadParams {
+    pub access_key_id: String,
+    pub access_key_secret: String,
+    pub bucket: String,
+    pub endpoint: String,
+    pub expiration: String,
+    pub key: String,
+    pub security_token: String,
+}
+
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct InitiateMultipartUploadResult {
+    pub Bucket: String,
+    pub Key: String,
+    pub UploadId: String,
+}
+
+
 
 
 #[derive(Debug, Clone,Serialize, Deserialize)]
@@ -146,6 +216,7 @@ pub struct WebdavFile {
     pub kind: String,
     pub id: String,
     pub parent_id: String,
+    pub phase: String,
     pub name: String,
     pub size: String,
     pub file_extension: String,
@@ -216,6 +287,7 @@ impl WebdavFile {
             kind: "drive#folder".to_string(),
             id: "".to_string(),
             parent_id: "".to_string(),
+            phase: "".to_string(),
             name: "root".to_string(),
             size: "0".to_string(),
             created_time: DateTime(now),

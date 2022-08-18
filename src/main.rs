@@ -5,8 +5,8 @@ use std::{env, io, path::PathBuf};
 use headers::{authorization::Basic, Authorization, HeaderMapExt};
 use structopt::StructOpt;
 use tracing::{debug, error, info};
-//use webdav_handler::{body::Body, memls::MemLs, fakels::FakeLs, localfs::LocalFs,DavConfig, DavHandler};
-use webdav_handler::{body::Body, memls::MemLs,DavConfig, DavHandler};
+//use webdav_handler::{body::Body, memls::MemLs, fakels::FakeLs, DavConfig, DavHandler};
+use dav_server::{body::Body, memls::MemLs,DavConfig, DavHandler};
 use vfs::WebdavDriveFileSystem;
 use model::Credentials;
 
@@ -63,6 +63,7 @@ struct Opt {
     /// Working directory, refresh_token will be stored in there if specified
     #[structopt(short = "w", long)]
     workdir: Option<PathBuf>,
+
 }
 
 #[tokio::main(flavor = "multi_thread")]
@@ -70,14 +71,16 @@ async fn main() -> anyhow::Result<()> {
     #[cfg(feature = "native-tls-vendored")]
     openssl_probe::init_ssl_cert_env_vars();
 
-    if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "webdav=info");
-    }
-    tracing_subscriber::fmt::init();
-
     let opt = Opt::from_args();
     let auth_user = opt.auth_user;
     let auth_pwd = opt.auth_password;
+
+    tracing_subscriber::fmt::init();
+    if env::var("RUST_LOG").is_err() {
+       env::set_var("RUST_LOG", "pikpak_webdav=info,reqwest=warn");
+    }
+
+
     if (auth_user.is_some() && auth_pwd.is_none()) || (auth_user.is_none() && auth_pwd.is_some()) {
         anyhow::bail!("auth-user and auth-password should be specified together.");
     }
@@ -104,7 +107,7 @@ async fn main() -> anyhow::Result<()> {
         .build_handler();
 
     ////本地文件////
-    // let dir = "/Users/coder/Downloads/";
+    // let dir = "~/Downloads/";
     // let dav_server = DavHandler::builder()
     // .filesystem(LocalFs::new(dir, false, false, false))
     //     .locksystem(MemLs::new())
