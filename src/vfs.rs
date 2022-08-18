@@ -898,7 +898,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                 hasher.update(file_path.as_bytes());
                 let hash_code = hasher.finalize();
                 let file_hash = format!("{:X}",&hash_code);
-
+                let parent_folder_id = parent_file.id.clone();
 
                 let file = WebdavFile {
                     name,
@@ -909,7 +909,7 @@ impl DavFileSystem for WebdavDriveFileSystem {
                     size: size.unwrap_or(0).to_string(),
                     created_time: DateTime::new(now),
                     modified_time: DateTime::new(now),
-                    file_extension: "".to_string(),
+                    file_extension: parent_folder_id,
                     mime_type: "".to_string(),
                     web_content_link: "".to_string(),
                     medias:Vec::new(),
