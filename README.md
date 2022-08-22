@@ -55,7 +55,7 @@ x86_64的安装代码:
 wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.3/pikpak-webdav_0.0.3_x86_64.ipk
 wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.3/luci-app-pikpak-webdav_1.0.0_all.ipk
 wget https://github.com/ykxVK8yL5L/pikpak-webdav/releases/download/v0.0.3/luci-i18n-pikpak-webdav-zh-cn_1.0.0-1_all.ipk
-opkg install pikpak-webdav_0.0.2_x86_64.ipk
+opkg install pikpak-webdav_0.0.3_x86_64.ipk
 opkg install luci-app-pikpak-webdav_1.0.0_all.ipk
 opkg install luci-i18n-pikpak-webdav-zh-cn_1.0.0-1_all.ipk
 ```
