@@ -31,7 +31,7 @@ start_service() {
 
 
       procd_open_instance
-      procd_set_param command /bin/sh -c "/usr/bin/$NAME  --host $host --port $port --root $root -S $read_buf_size --upload_buffer_size $upload_buffer_size --cache-size $cache_size --cache-ttl $cache_ttl --proxy-url $proxy_url --workdir /var/run/$NAME >>/var/log/$NAME.log 2>&1"
+      procd_set_param command /bin/sh -c "/usr/bin/$NAME  --host $host --port $port --root $root -S $read_buf_size --upload-buffer-size $upload_buffer_size --cache-size $cache_size --cache-ttl $cache_ttl --proxy-url $proxy_url --workdir /var/run/$NAME >>/var/log/$NAME.log 2>&1"
       procd_set_param pidfile /var/run/$NAME.pid
       procd_append_param env PIKPAK_USER="$pikpak_user"
       procd_append_param env PIKPAK_PASSWORD="$pikpak_password"
