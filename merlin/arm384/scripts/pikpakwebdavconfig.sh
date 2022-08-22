@@ -41,10 +41,10 @@ pikpakwebdav_start_stop(){
         fi
 
 
-        echo_date "参数为：${pikpakwebdav_port} --pikpak-user ${pikpakwebdav_user} --pikpak-password ${pikpakwebdav_password} --proxy-url ${pikpakwebdav_proxy_url} --root ${pikpakwebdav_root} -S ${pikpakwebdav_read_buffer_size} --upload_buffer_size ${pikpakwebdav_write_buffer_size} --cache-size ${pikpakwebdav_cache_size} --cache-ttl ${pikpakwebdav_cache_ttl} $AUTH_ARGS" >> $LOG_FILE
+        echo_date "参数为：${pikpakwebdav_port} --pikpak-user ${pikpakwebdav_user} --pikpak-password ${pikpakwebdav_password} --proxy-url ${pikpakwebdav_proxy_url} --root ${pikpakwebdav_root} -S ${pikpakwebdav_read_buffer_size} --upload-buffer-size ${pikpakwebdav_write_buffer_size} --cache-size ${pikpakwebdav_cache_size} --cache-ttl ${pikpakwebdav_cache_ttl} $AUTH_ARGS" >> $LOG_FILE
         #start-stop-daemon -S -q -b -m -p ${PID_FILE} \
-        #  -x /bin/sh -- -c "${BIN} --workdir /var/run/pikpakwebdav --host 0.0.0.0 --p ${pikpakwebdav_port} --pikpak-user ${pikpakwebdav_user} --pikpak-password ${pikpakwebdav_password} --proxy-url ${pikpakwebdav_proxy_url} --cache-ttl ${pikpakwebdav_cache_ttl} --root ${pikpakwebdav_root} -S ${pikpakwebdav_read_bufffer_size} $AUTH_ARGS >/tmp/pikpakwebdav.log 2>&1"
-        ${BIN}  --workdir /var/run/pikpakwebdav --host 0.0.0.0 --port ${pikpakwebdav_port} --pikpak-user ${pikpakwebdav_user} --pikpak-password ${pikpakwebdav_password} --proxy-url ${pikpakwebdav_proxy_url} --cache-ttl ${pikpakwebdav_cache_ttl} --root ${pikpakwebdav_root} -S ${pikpakwebdav_read_buffer_size} --upload_buffer_size ${pikpakwebdav_write_buffer_size}  --cache-size ${pikpakwebdav_cache_size} $AUTH_ARGS >/tmp/upload/pikpakwebdav.log 2>&1 &
+        #  -x /bin/sh -- -c "${BIN} --workdir /var/run/pikpakwebdav --host 0.0.0.0 --p ${pikpakwebdav_port} --pikpak-user ${pikpakwebdav_user} --pikpak-password ${pikpakwebdav_password} --proxy-url ${pikpakwebdav_proxy_url} --cache-ttl ${pikpakwebdav_cache_ttl} --root ${pikpakwebdav_root} -S ${pikpakwebdav_read_bufffer_size} --upload-buffer-size ${pikpakwebdav_write_buffer_size}  $AUTH_ARGS >/tmp/pikpakwebdav.log 2>&1"
+        ${BIN}  --workdir /var/run/pikpakwebdav --host 0.0.0.0 --port ${pikpakwebdav_port} --pikpak-user ${pikpakwebdav_user} --pikpak-password ${pikpakwebdav_password} --proxy-url ${pikpakwebdav_proxy_url} --cache-ttl ${pikpakwebdav_cache_ttl} --root ${pikpakwebdav_root} -S ${pikpakwebdav_read_buffer_size} --upload-buffer-size ${pikpakwebdav_write_buffer_size}  --cache-size ${pikpakwebdav_cache_size} $AUTH_ARGS >/tmp/upload/pikpakwebdav.log 2>&1 &
         sleep 5s
         if [ ! -z "$(pidof pikpak-webdav)" -a ! -n "$(grep "Error" /tmp/upload/pikpakwebdav.log)" ] ; then
           echo_date "PikPak 进程启动成功！(PID: $(pidof pikpak-webdav))" >> $LOG_FILE
