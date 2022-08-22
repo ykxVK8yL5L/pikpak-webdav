@@ -25,6 +25,7 @@ dbus set softcenter_module_${MODULE}_install="1"
 # 默认配置
 dbus set ${MODULE}_port="9867"
 dbus set ${MODULE}_read_buffer_size="10485760"
+dbus set ${MODULE}_write_buffer_size="16777216"
 dbus set ${MODULE}_cache_size="1000"
 
 rm -rf /tmp/pikpakwebdav* >/dev/null 2>&1

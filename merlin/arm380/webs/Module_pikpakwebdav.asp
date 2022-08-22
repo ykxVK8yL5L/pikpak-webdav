@@ -106,6 +106,12 @@
                                                                         <th>下载缓冲大小(bytes)</th>
                                                                         <td><input type="text" id="pikpakwebdav_read_buffer_size" value="<% dbus_get_def("pikpakwebdav_read_buffer_size", "10485760"); %>" class="input_ss_table"></td>
                                                                     </tr>
+
+                                                                    <tr id="read_buffer_size_tr">
+                                                                        <th>上传缓冲大小(bytes)</th>
+                                                                        <td><input type="text" id="pikpakwebdav_write_buffer_size" value="<% dbus_get_def("pikpakwebdav_write_buffer_size", "16777216"); %>" class="input_ss_table"></td>
+                                                                    </tr>
+
                                                                     <tr id="cache_size_tr">
                                                                         <th>目录缓存大小</th>
                                                                         <td><input type="text" id="pikpakwebdav_cache_size" value="<% dbus_get_def("pikpakwebdav_cache_size", "1000"); %>" class="input_ss_table"></td>
@@ -154,7 +160,7 @@
                 buildswitch();
                 update_visibility();
                 var posting = false;
-                var inputs = ['user','password','proxy_url' 'port', 'auth_user', 'auth_password', 'read_buffer_size', 'cache_size','cache_ttl', 'root'];
+                var inputs = ['user','password','proxy_url' 'port', 'auth_user', 'auth_password', 'read_buffer_size','write_buffer_size', 'cache_size','cache_ttl', 'root'];
                 $('.button_gen').click(function () {
                     if(posting) return;
                     posting = true; // save
@@ -209,6 +215,7 @@
                     document.getElementById("auth_user_tr").style.display = "";
                     document.getElementById("auth_password_tr").style.display = "";
                     document.getElementById("read_buffer_size_tr").style.display = "";
+                    document.getElementById("write_buffer_size_tr").style.display = "";
                     document.getElementById("cache_size_tr").style.display = "";
                     document.getElementById("cache_ttl_tr").style.display = "";
 
@@ -221,6 +228,7 @@
                     document.getElementById("auth_user_tr").style.display = "none";
                     document.getElementById("auth_password_tr").style.display = "none";
                     document.getElementById("read_buffer_size_tr").style.display = "none";
+                    document.getElementById("write_buffer_size_tr").style.display = "none";
                     document.getElementById("cache_size_tr").style.display = "none";
                     document.getElementById("cache_ttl_tr").style.display = "none";
                 }

@@ -65,6 +65,9 @@ if [ "$SPACE_AVAL" -gt "$SPACE_NEED" ];then
     # 默认配置
     dbus set ${MODULE}_port="9867"
     dbus set ${MODULE}_read_buffer_size="10485760"
+	 dbus set ${MODULE}_write_buffer_size="16777216"
+
+	
 
     rm -rf /tmp/pikpakwebdav* >/dev/null 2>&1
     aw_enable=`dbus get pikpakwebdav_enable`
