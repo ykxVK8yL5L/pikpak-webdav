@@ -241,6 +241,7 @@ jobs:
   openwrt:
       name: OpenWrt Package - ${{ matrix.target.arch }}
       runs-on: ubuntu-latest
+      needs: [ linux,linux-others ]
       environment: OpenWrt
       strategy:
         matrix:
