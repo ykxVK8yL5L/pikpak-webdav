@@ -159,7 +159,13 @@ impl WebdavDriveFileSystem {
         U: DeserializeOwned,
     {
         let access_token_key = "access_token".to_string();
-        let access_token = self.auth_cache.get(&access_token_key).unwrap();
+        let access_token = match self.auth_cache.get(&access_token_key) {
+            Some(token) => token,
+            None => {
+                error!("Token获取失败，请检查账号状态或网络");
+                "".to_string()
+            }
+        };
         let url = reqwest::Url::parse(&url)?;
         let res = self
             .client
@@ -225,7 +231,13 @@ impl WebdavDriveFileSystem {
         U: DeserializeOwned,
     {
         let access_token_key = "access_token".to_string();
-        let access_token = self.auth_cache.get(&access_token_key).unwrap();
+        let access_token = match self.auth_cache.get(&access_token_key) {
+            Some(token) => token,
+            None => {
+                error!("Token获取失败，请检查账号状态或网络");
+                "".to_string()
+            }
+        };
         let url = reqwest::Url::parse(&url)?;
         let res = self
             .client
@@ -291,7 +303,13 @@ impl WebdavDriveFileSystem {
         U: DeserializeOwned,
     {
         let access_token_key = "access_token".to_string();
-        let access_token = self.auth_cache.get(&access_token_key).unwrap();
+        let access_token = match self.auth_cache.get(&access_token_key) {
+            Some(token) => token,
+            None => {
+                error!("Token获取失败，请检查账号状态或网络");
+                "".to_string()
+            }
+        };
         let url = reqwest::Url::parse(&url)?;
         let res = self
             .client
@@ -448,7 +466,13 @@ impl WebdavDriveFileSystem {
         let mut pagetoken = "".to_string();
         let mut files = Vec::new();
         let access_token_key = "access_token".to_string();
-        let access_token = self.auth_cache.get(&access_token_key).unwrap();
+        let access_token = match self.auth_cache.get(&access_token_key) {
+            Some(token) => token,
+            None => {
+                error!("Token获取失败，请检查账号状态或网络");
+                "".to_string()
+            }
+        };
 
         loop{
             let mut rurl = format!("https://api-drive.mypikpak.com/drive/v1/files?parent_id={}&thumbnail_size=SIZE_LARGE&with_audit=true&page_token={}&limit=0&filters={{\"phase\":{{\"eq\":\"PHASE_TYPE_COMPLETE\"}},\"trashed\":{{\"eq\":false}}}}",&parent_file_id,pagetoken);
@@ -682,7 +706,13 @@ impl WebdavDriveFileSystem {
         };
         let payload = serde_json::to_string(&req).unwrap();
         let access_token_key = "access_token".to_string();
-        let access_token = self.auth_cache.get(&access_token_key).unwrap();
+        let access_token = match self.auth_cache.get(&access_token_key) {
+            Some(token) => token,
+            None => {
+                error!("Token获取失败，请检查账号状态或网络");
+                "".to_string()
+            }
+        };
 
         let res = self.client.post(url)
             .header(reqwest::header::CONTENT_LENGTH, payload.len())
