@@ -17,6 +17,11 @@ pikpak-webdav --host 0.0.0.0 --pikpak-user xxxx --pikpak-password xxxx
 ```
 
 ## 可用代理【未验证】 
+https://pikpak.89u.xyz  
+https://diii.tk   
+https://api-pikpak.go-back.cf   
+https://api-pikpak.gogoback.cf   
+https://api-pikpak.tjsky.cf   
 https://api.13pikpak.cf   
 https://api.14pikpak.cf  
 https://api.15pikpak.cf   
