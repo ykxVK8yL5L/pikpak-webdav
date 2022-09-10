@@ -370,7 +370,12 @@
                                                                     <tr id="read_buffer_size_tr">
                                                                         <th>下载缓冲大小(bytes)</th>
                                                                         <td><input type="text" id="pikpakwebdav_read_buffer_size" value="10485760" class="input_15_table"></td>
+                                                                    </tr> 
+                                                                    <tr id="write_buffer_size_tr">
+                                                                        <th>上传缓冲大小(bytes)</th>
+                                                                        <td><input type="text" id="pikpakwebdav_write_buffer_size" value="10485760" class="input_15_table"></td>
                                                                     </tr>
+
                                                                     <tr id="cache_size_tr">
                                                                         <th>目录缓存大小</th>
                                                                         <td><input type="text" id="pikpakwebdav_cache_size" value="1000" class="input_15_table"></td>
