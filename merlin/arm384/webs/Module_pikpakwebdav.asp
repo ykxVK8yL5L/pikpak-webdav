@@ -373,7 +373,7 @@
                                                                     </tr> 
                                                                     <tr id="write_buffer_size_tr">
                                                                         <th>上传缓冲大小(bytes)</th>
-                                                                        <td><input type="text" id="pikpakwebdav_write_buffer_size" value="10485760" class="input_15_table"></td>
+                                                                        <td><input type="text" id="pikpakwebdav_write_buffer_size" value="16777216" class="input_15_table"></td>
                                                                     </tr>
 
                                                                     <tr id="cache_size_tr">
